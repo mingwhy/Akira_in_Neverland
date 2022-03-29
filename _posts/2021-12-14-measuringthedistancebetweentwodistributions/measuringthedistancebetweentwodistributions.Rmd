@@ -1,0 +1,186 @@
+---
+title: "Metric: measruing the distance between two distributions"
+description: |
+  Three metrics quantifying the differnece between two distributions.
+author: Ming
+date: 2021-12-12
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F,warning = F) 
+```
+
+In this blog, I'd introduce three metrics measruing the distance between two distributions.
+
+# Kolmogorov–Smirnov test
+
+The first metric is actually derived from a nonparametric method  comparing the significant difference between two empirical distributions.
+
+Let's simulate some continuous distributed data first, and have a look at their empirical density plot and cumulative distributions. 
+
+````{r}
+library(ggplot2)
+library(tidyverse)
+set.seed(123456)
+sample1=runif(100,0,1)
+sample2=rnorm(200,0,1)
+
+df=data.frame(sample=c(rep('sample1',100),rep('sample2',200)),
+              value=c(sample1,sample2))
+ggplot(df,aes(x=value,group=sample,col=sample))+
+  geom_density()+theme_classic()
+
+ggplot(df, aes(x=value,group=sample,col=sample))+
+  stat_ecdf(geom = "step")+theme_classic(base_size = 20)
+out=ks.test(sample1,sample2)
+out$statistic
+```
+
+The `statistic` reported by ks.test() is the largest distance between the two distributions. 
+
+We can explicitly visualize this statistic via code below.
+
+```{r}
+#Visualizing the Kolmogorov-Smirnov statistic in ggplot2
+## ks: https://rpubs.com/mharris/KSplot
+cdf1=ecdf(sample1)
+cdf2=ecdf(sample2)
+
+# find min and max statistics to draw line between points of greatest distance
+minMax <- seq(min(sample1, sample2), max(sample1, sample2), length.out=length(sample1)) 
+D= abs(cdf1(minMax) - cdf2(minMax))
+max(D);
+out$statistic;
+x0 <- minMax[which(D== max(D))] 
+y0 <- cdf1(x0) 
+y1 <- cdf2(x0) 
+ggplot(df, aes(x = value, group = sample, color = sample))+
+  stat_ecdf(size=1) +
+  theme_bw(base_size = 12) +
+  theme(legend.position ="top") +
+  xlab("Sample") +
+  ylab("ECDF") +
+  geom_segment(aes(x = x0[1], y = y0[1], xend = x0[1], yend = y1[1]),
+               linetype = "dashed", color = "black",lwd=0.5) +
+  geom_point(aes(x = x0[1] , y= y0[1]), color="black", size=2) +
+  geom_point(aes(x = x0[1] , y= y1[1]), color="black", size=2) +
+  ggtitle("K-S Test: Sample 1 / Sample 2") +
+  theme(legend.title=element_blank())
+
+```
+
+# Jensen–Shannon divergence
+
+This **Jensen–Shannon divergence** is actually derived from **Kullback-Leibler Divergence**.
+
+## the entorpy of a distribution
+
+The core concept involved in this metric is **the entorpy of a distribution**.
+
+The definition of Entropy for a probability distribution is:
+
+$$H=-\sum_{i=1}^{N} p(x_i)*log(p(x_i))$$
+If we use $log2$ in the above calculation, it can be interpreted as 'the minimal number of bits to encode the information'.
+
+A simplest example, if we have a coin with head probability 0.5 and tail probability 0.5, then $H = -1*{(0.5*log2(0.5) + 0.5*log2(0.5)}=1$, which means we need 1 bit to encode the fairness of this coin.
+
+Suppose, this coin is unfair, with head = 0.8 and tail = 0.2.
+Then $H = -1*{(0.8*log2(0.8) + 0.2*log2(0.2)}=0.7219$.
+
+Entropy can be interpreted as the **uncertainty** of a distribution.
+It's more difficult or it invovoles more uncertainty to predict what the next outcome would be with a fair coin than with a unfair coin.
+Thus, a fair coin requires more bit to encode its information.
+
+## Kullback-Leibler Divergence
+
+The KL divergence formula is:
+
+$$D_{KL}(p||q)=\sum_{i=1}^N p(x_i)*(log p(x_i) - log q(x_i))$$
+
+or
+$$D_{KL}(p||q)=E[log p(x_i) - log q(x_i)]$$
+or
+$$D_{KL}(p||q)=\sum_{i=1}^N p(x_i) * log\frac{p(x_i)}{q(x_i)}$$
+We can use functions from R package `philentropy` to do the calculation.
+
+```{r}
+set.seed(123456)
+sample1=rbinom(100,20,0.2)
+sample2=rpois(200,8)
+df=data.frame(sample=c(rep('sample1',100),rep('sample2',200)),
+              value=c(sample1,sample2))
+
+ggplot(df, aes(x=value,group=sample,col=sample))+
+  geom_density()+theme_classic()
+
+f1=prop.table(table(sample1))
+f2=prop.table(table(sample2))
+bins=sort(as.numeric(unique(c(names(f1),names(f2)))))
+tmp=rep(0,length(bins))
+names(tmp)=bins
+s1=tmp
+s1[names(f1)]=f1;
+s2=tmp
+s2[names(f2)]=f2;
+rbind(s1,s2)
+# unsymmetric
+philentropy::KL(rbind(s1,s2),unit = 'log2')
+philentropy::KL(rbind(s2,s1),unit = 'log2')
+```
+
+As you may have notice, one thing with KL divergence is, it's not symmetric. So, here comes Jensen-Shannon Divergence.
+
+## Jensen-Shannon Divergence
+
+JSD is defined as:
+
+$$JSD(P||Q) = 0.5 * (KL(P||R)+KL(Q||R))$$
+
+$R = 0.5 * (P+Q)$
+
+We can use `JSD` function to do the calculation.
+
+```{r}
+R = 0.5*(s1+s2)
+0.5*(philentropy::KL(rbind(s1,R),unit = 'log2')+
+  philentropy::KL(rbind(s2,R),unit = 'log2'))
+
+philentropy::JSD(rbind(s2,s1),unit='log2')
+philentropy::JSD(rbind(s1,s2),unit='log2')
+```
+
+
+# Optimal Transport and Wasserstein Distance 
+
+[Wasserstein Distance](https://en.wikipedia.org/wiki/Wasserstein_metric) has a nickname of [Earth mover's distance](https://en.wikipedia.org/wiki/Earth_mover%27s_distance), i.e., what's the minimal effort you have to do to move a pile of sand from region A to region B.
+
+While there are more math involved for this metric, it is very popular in single-cell data methodology development.
+
+I would only show the function used in R to calculate this metric.
+
+```{r}
+
+set.seed(123456)
+sample1=runif(100,0,1)
+sample2=rnorm(200,0,1)
+
+transport::wasserstein1d(sample1,sample2)
+
+set.seed(123456)
+sample1=rbinom(100,20,0.2)
+sample2=rpois(200,8)
+transport::wasserstein1d(sample1,sample2)
+```
+
+Have fun~
+
+```{r}
+devtools::session_info()
+```
+
+

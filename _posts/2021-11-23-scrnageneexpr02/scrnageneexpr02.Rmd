@@ -1,0 +1,126 @@
+---
+title: "02.scRNA-seq: fit ZIP model with cmdstanr R package"
+description: |
+  Simulate data following Zero-inflated Possion model and estimate parameters in a Bayesian framework
+author: Ming
+date: 2021-11-22
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+This post belongs to the 'modelling gene expression with single cell data' series.
+
+I'd use `brms` and `cmdstanr` r package to fit Zero-inflated Possion model in a Bayesian framework.
+
+## use brms to fit Zero-inflated Possion model
+
+Ref: https://stats.idre.ucla.edu/r/dae/zip/
+
+A Zero-inflated Possion model has two component: inlfated 0 and a Possion distribution.
+
+Thus, the probability of observing a 0 equals:
+
+$$ P(Y=0) = \pi + (1-\pi) *Poisson(0|lambda) $$
+
+simulate some data first
+
+```{r}
+library(brms) 
+f0='y ~ 1'
+adapt_delta=0.8
+nCores=2
+seed=2049
+
+### zero-inflated Possion model 
+#https://stats.stackexchange.com/questions/189005/simulate-from-a-zero-inflated-poisson-distribution/189052
+n=1000;
+pi=0.2; lambda=2
+set.seed(2049)
+y=ifelse(rbinom(n, size = 1, prob = 1-pi) == 0, 0, rpois(n, lambda = lambda))
+simu.dat=data.frame(y=y)
+hist(y,main='Zero-inflated Possion model')
+
+```
+
+begin to fit model
+
+```{r}
+myprior <- get_prior(bf(as.formula(f0), zi ~ 1),
+                       family = zero_inflated_poisson(),
+                       data = simu.dat)
+myprior_values <- eval(parse(text=gsub("student_t", "c", myprior$prior[1])))
+```
+
+```{r eval=F}
+fit.out=brm(bf(as.formula(f0), zi ~ 1),
+                        family = zero_inflated_poisson(),
+                        data = simu.dat,
+                        prior = myprior,
+                        control = list(adapt_delta = adapt_delta),
+                        cores = nCores,
+                        seed = seed,
+                        refresh = 500)
+```
+
+There are some error message when running `brm()`
+
+>error message:
+#SAMPLING FOR MODEL '373567a7b30c7389e50b3f232b41cb74' NOW (CHAIN 1).
+
+>Error in unserialize(socklist[[n]]) : error reading from connection
+
+>SAMPLING FOR MODEL '373567a7b30c7389e50b3f232b41cb74' NOW (CHAIN 2).
+
+I did some search and found a solution which requie the installation of `cmdstanr` package
+
+## install cmdstanr
+```{r eval=F}
+#https://mc-stan.org/cmdstanr/articles/cmdstanr.html
+#https://githubmemory.com/repo/stan-dev/cmdstanr/issues/552
+remotes::install_github("stan-dev/cmdstanr")
+## test cmdstanr
+library(cmdstanr)
+library(posterior)
+library(bayesplot)
+color_scheme_set("brightblue")
+
+check_cmdstan_toolchain()
+install_cmdstan(cores = 2)
+#* Finished installing CmdStan to /Users/ming/.cmdstan/cmdstan-2.28.1
+#CmdStan path set to: /Users/ming/.cmdstan/cmdstan-2.28.1
+# check path
+cmdstan_path()
+cmdstan_version() #2.28.1
+```
+
+## use cmdstanr to fit ZIP model
+```{r}
+library(brms)
+options(brms.backend = "cmdstanr")
+fit.out=brm(bf(as.formula(f0), zi ~ 1),
+                        family = zero_inflated_poisson(),
+                        data = simu.dat,
+                        prior = myprior,
+                        control = list(adapt_delta = adapt_delta),
+                        cores = nCores,
+                        seed = seed,
+                        refresh = 500)
+
+fit.out #Links: mu = log; zi = logit 
+x=brms::posterior_summary(fit.out)
+exp(x[1,1]) #Links: mu = log
+exp(x[4,1])/(1+exp(x[4,1])) #prob, link='logit'
+```
+```{r}
+sessionInfo()
+```
+
+

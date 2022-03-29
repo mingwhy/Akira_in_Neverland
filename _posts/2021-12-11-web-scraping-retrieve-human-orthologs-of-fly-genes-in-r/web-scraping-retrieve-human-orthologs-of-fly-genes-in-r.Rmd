@@ -1,0 +1,126 @@
+---
+title: "Web scraping: Retrieve human orthologs of fly genes in R"
+description: |
+  Retrieve human orthologs of fly genes in R through web scraping
+author: Ming
+date: 2021-12-01
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F,warning = F) 
+```
+
+# How to get human orthologs of fly genes?
+
+## biomaRt
+
+There are actually several ways to do it, for example, you can use R package `biomaRt`.
+
+```{r}
+library(biomaRt);
+library(org.Dm.eg.db)
+fly.gene='FBgn0029663'; #use this gene as an example
+# as biomaRt require entrezgene_id to do serach, first find the entrezgene_id of this fly gene.
+ensembl = useMart("ensembl",dataset="dmelanogaster_gene_ensembl")
+gene.df <- AnnotationDbi::select(org.Dm.eg.db, keys=fly.gene, 
+                                 keytype = "FLYBASE",
+                                 c("SYMBOL","ENTREZID","GENENAME"))
+gene.df
+out<-getBM(attributes=c('ensembl_gene_id','external_gene_name',
+                      'hsapiens_homolog_ensembl_gene','hsapiens_homolog_chromosome',
+                      'hsapiens_homolog_chrom_start','hsapiens_homolog_chrom_end',
+                      'hsapiens_homolog_orthology_type',
+                      'hsapiens_homolog_perc_id',"hsapiens_homolog_perc_id_r1",
+                      'hsapiens_homolog_orthology_confidence'), 
+      filters = 'entrezgene_id', 
+      values = gene.df$ENTREZID, 
+      mart = ensembl)
+out
+```
+
+`biomaRt` is a very handy tool, but sometimes the database it inquires is not always up-to-date.
+
+## DIOPT
+
+Here is another online database, called [DIOPT - DRSC Integrative Ortholog Prediction Tool](https://www.flyrnai.org/cgi-bin/DRSC_orthologs.pl) which integrates multiple ortholog prediction tools and covers a more comprehensive database.
+
+You could submit your inquire genes online and download the returned result in a excel file.
+
+But if you have 16,000 inquire genes, this process may be too slow.
+
+Here I would show code how to do web scrape of this webside in R which facililates large numbers of ortholog retrieval.
+
+# Web scraping DIOPT
+
+
+```{r}
+library(rvest)
+
+url<-"https://www.flyrnai.org/diopt"; #the url we'd like to 'talk' to
+x=read_html(url)
+session<-html_session(url) #set up a "channel" to talk
+html_form(session) #have a look at the configuration of this 'channel'
+
+form<-html_form(session)[[1]]
+
+# use one query gene to fill out the form 
+form<-set_values(form, gene_list ='FBgn0029663')
+form$fields$gene_list
+
+# have a look at the 'Search Field', 'Search Datasets', and 'Additional Filter'
+form$fields$search_fields
+form$fields$search_datasets
+form$fields$additional_filter
+
+if(T){
+  # for some computer, you may need to purposely check 'ALL' and uncheck others
+  # locate Search Field in the form object list
+  length(form$fields)
+  form$fields[[5]] #search_fields
+  form$fields[[6]] #gene_list
+  form$fields[[7]] #gene_file: 
+  form$fields[[9]]#search_datasets: All
+  form$fields[[10]]#search_datasets: Compara
+  form$fields[[27]]#search_datasets: ZFIN
+  for(i in 10:27){
+    form$fields[[i]]$value<-'***'
+  }
+  form$fields[[28]] #additional_filter: None
+  form$fields[[29]] # additional_filter: Best
+  form$fields[[32]] # additional_filter: HighRank
+  for(i in 29:32){
+    form$fields[[i]]$value<-'***'
+  }
+}
+
+# <field> (submit) submit: Submit Search
+result <- submit_form(session,form,submit='submit')
+x<-read_html(result)
+
+# output this xml object to local 'test.html' file and you can open this file in chrome 
+if(F){
+  sink("test.html");
+  XML::xmlNode(x)
+  sink()
+  browseURL('test.html')
+}
+
+## process output
+x.out=html_table(x)
+length(x.out)
+colnames(x.out[[1]])
+x.out[[1]]
+```
+
+As you can see, `biomaRt` found nothing of this fly gene in terms of human orthologs, but `DIOPT` gave us more interesting information.
+
+Have Fun~
+
+```{r}
+devtools::session_info()
+```

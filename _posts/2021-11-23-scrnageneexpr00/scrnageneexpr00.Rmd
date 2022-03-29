@@ -1,0 +1,224 @@
+---
+title: "00.scRNA-seq: fit zero proportions"
+description: |
+  I'd create a loom object containing test scRNA-seq data and fit simple model to assess 0 inflation.
+author: Ming
+date: 2021-11-20
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+One feature of single cell RNA-seq data is the abundance of '0'.
+There are papers talking about both technical and biological sources of these '0', 
+I list some of them at the end of this post.
+
+I'm gonna write a series of posts, talking about how to model gene expression in single cell data, such as if there is 0 inflation, how to fit statistical models, how to interpete the fitting result.
+
+This post is the first one of the series. 
+
+In this post, I'd
+
+- generate a test dataset in 'loom' format of one fly tissue from the `Fly Cell Atals` public database.
+- plot mean ~ var relationship for genes
+- fit gene expression using negative binomial model and show the fitting result
+
+
+
+## Generate a loom object containing sample scRNA-seq data
+
+```{r eval=F}
+## use SCopeLoomR to read loom file
+## save three pieces of information
+## cell.info, gene.names, raw matrix data
+if(F){remotes::install_github("aertslab/SCopeLoomR")}
+library(SCopeLoomR)
+
+# Fly Cell Atlas: https://flycellatlas.org/
+# use wing tisse '10x, Stringent, Loom' as an example
+loom_path <- 's_fca_biohub_wing_10x.loom'
+loom <- open_loom(loom_path, mode="r+")
+
+cell.info=get_cell_annotation(loom)
+dim(cell.info) 
+#[1] 15889   347
+
+gene.names=get_genes(loom)
+length(gene.names) 
+#13411
+
+raw <- get_dgem(loom)
+raw[1:5,1:5]
+dim(raw) 
+#[1] 13411 15889
+
+close_loom(loom)
+
+## all three pieces of information collected
+## generate a sample data stored in loom format
+## select two cell types and save a new loom object
+pick=names(sort(table(cell.info$annotation)))[c(2,3)]
+pick
+#[1] "muscle cell" "hemocyte" 
+
+cell.info.sub=cell.info[cell.info$annotation %in% pick,]
+raw.sub=raw[,cell.info$annotation %in% pick]
+dim(cell.info.sub)
+#[1] 302 347
+dim(raw.sub)
+#[1] 13411   302
+length(gene.names)
+#[1] 13411
+sum(rownames(raw.sub)==gene.names)
+#[1] 13411
+
+cell.info.sub.list=list(
+  cell.type=cell.info.sub$annotation,
+  sex.label=cell.info.sub$sex)
+
+#https://rdrr.io/github/mojaveazure/loomR/man/create.html
+library(loomR)
+create('wing_2celltypes_10x.loom',data=raw.sub,cell.attrs=cell.info.sub.list)
+```
+
+The test sample data is done.
+I chose to store it in **loom** format due to its small size and read it inside R whenever in use.
+
+```{r}
+## read in small loomR file
+library(loomR)
+ds <- connect('wing_2celltypes_10x.loom')
+mat <- t(ds$matrix[,])
+gene.names <- ds$row.attrs$Gene[]
+cell.names <- ds$col.attrs$CellID[]
+cell.types<-ds$col.attrs$cell.type[]
+sex.labels<-ds$col.attrs$sex.label[]
+ds$close_all()
+
+dim(mat)
+length(gene.names)
+length(cell.names)
+table(cell.types)
+table(sex.labels)
+```
+
+## Plot mean ~ var for genes
+```{r}
+# select one cell.type for following analysis
+(cell.type=unique(cell.types)[1])
+
+mat1=mat[,cell.types==cell.type]
+
+# exclude genes that are zero all all cells
+gg<-Matrix::rowSums(mat1)>0 
+Y<-mat[gg,]
+dim(Y)
+
+library(sparseMatrixStats)
+gene_means<- sparseMatrixStats::rowMeans2(Y)
+gene_vars<- sparseMatrixStats::rowVars(Y)
+length(gene_means);length(gene_vars)
+library(tidyverse)
+df<- bind_cols(gene_means = gene_means, gene_vars = gene_vars)
+# the quadratic polynomial mean-variance relation
+df %>% ggplot(aes(x = log10(gene_means), y = log10(gene_vars))) +
+  geom_point() +
+  theme_classic(base_size = 14) +
+  ggtitle(paste0("Fly wing,",cell.type))
+```
+
+## Fit Negative.binomial distribution model by plug-in
+From above, the [quadratic polynomial mean-variance relation](https://www.nxn.se/valent/2018/1/30/count-depth-variation-makes-poisson-scrna-seq-data-negative-binomial) is pretty obvious.
+
+For [NB distribution](https://en.wikipedia.org/wiki/Negative_binomial_distribution)
+
+one way of parameterization is:
+
+- Mean: mu
+- Var = mu + phi * mu^2
+
+I used **gene_means** as a empirical estimation of NB parameter ***mu*** and to performed a linear regression to estimate ***phi***.
+
+```{r}
+# plug in empirical mean and var to estimate phi
+model<- lm(gene_vars ~  1* gene_means + I(gene_means^2) + 0, data =df )
+x=summary(model)
+x$coefficients
+```
+
+
+## Is single cell RNAseq data 0 inflated?
+
+With `mu` and `phi` estimated, plot the fitted values with the observed ones.
+
+```{r}
+#plot fitter curve with obs data
+predicted_df<- data.frame(mean = df$gene_means, var_predict = 
+                            df$gene_means + x$coefficients[1] * (df$gene_means)^2 )
+
+df %>%  ggplot(aes(x = log10(gene_means), y = log10(gene_vars))) +
+  geom_point() +
+  geom_line(color = "red", data = predicted_df, aes(x = log10(gene_means), y =log10(var_predict))) + 
+  theme_classic(base_size = 14) +
+  ggtitle(paste0("Fly wing,",cell.type))
+
+```
+
+
+Calculate the expected `zero percentage` and compare it with the observation. 
+
+With ***mu*** and ***phi*** parameterization, following NB distribution, 
+$$ Pr(X=0) = (\frac{mu}{mu+phi})^{phi} $$
+
+(https://divingintogeneticsandgenomics.rbind.io/post/negative-binomial-distribution-in-scrnaseq/)
+
+```{r}
+phi <- 1/x$coefficients[1]
+zeros_nb<- (phi/(gene_means + phi))^phi
+zeros_observed<- apply(Y, 1, function(x) mean(x ==0))
+
+data.frame(zeros_nb = zeros_nb, zeros_observed = zeros_observed, 
+           gene_means = gene_means) %>%
+  ggplot(aes(x =log10(gene_means), y = zeros_observed)) +
+  geom_point() +
+  geom_line(aes(x = log10(gene_means), y = zeros_nb), color = "red") +
+  theme_classic(base_size = 14) +
+  ggtitle(paste0("Fly wing,",cell.type))
+
+```
+
+It didn't fit that well for highly expressed genes at the right tail.
+
+I'd use a varity of statistical models fitting gene expression for single cell data in future posts.
+
+## References
+
+This blog is inspired by 
+
+1. https://www.nxn.se/valent/2017/11/16/droplet-scrna-seq-is-not-zero-inflated
+2. https://divingintogeneticsandgenomics.rbind.io/post/negative-binomial-distribution-in-scrnaseq/
+3. https://divingintogeneticsandgenomics.rbind.io/post/negative-bionomial-distribution-in-single-cell-rnaseq/
+4. https://github.com/willtownes/scrna2019/blob/master/real/svensson_2019/01_exploratory.Rmd
+5. https://divingintogeneticsandgenomics.rbind.io/post/modeling-single-cell-rnaseq-data-with-multinomial-distribution/
+6. https://www.nxn.se/valent/2018/1/30/count-depth-variation-makes-poisson-scrna-seq-data-negative-binomial
+
+Further reading
+
+- Svensson, Valentine. "Droplet scRNA-seq is not zero-inflated." Nature Biotechnology 38.2 (2020): 147-150.
+- Sarkar, Abhishek, and Matthew Stephens. "Separating measurement and expression models clarifies confusion in single-cell RNA sequencing analysis." Nature Genetics 53.6 (2021): 770-777.
+- Choi, Kwangbom, et al. "Bayesian model selection reveals biological origins of zero inflation in single-cell transcriptomics." Genome biology 21.1 (2020): 1-16.
+- Li, Wei Vivian, and Yanzeng Li. "sclink: Inferring sparse gene co-expression networks from single-cell expression data." bioRxiv (2020).
+
+
+```{r}
+sessionInfo()
+```
+
+
+

@@ -1,0 +1,166 @@
+---
+title: "Web scraping: Inquire a dictionary to get english sentences in R"
+description: |
+  Learn english in R with web scraping
+author: Ming
+date: 2021-12-02
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F,warning = F)
+```
+
+This post is about how to use R to build a efficient English learning tool.
+
+The basic idea is that, I find that I learn English most efficient when putting words into contexts of a unifying theme.
+
+For example, while I am reading a fiction story, I run into some new english words. 
+During reading, I could 'easily' (most of the time) guess the word's meaning based on the contexts. I don't want to stop and look up for this new word as it would distract me from enjoying the smooth reading experience.
+
+But after reading, those new words may just 'disappeared' from my brain, as I never put my heart into memorizing them and they rarely come up again in my verbal english.
+
+I'm thinking about a more efficient pipeline to make the best use of my english reading time.
+
+The most direct way is I could just highlight all new english words in a PDF file while reading using a [Skim](https://skim-app.sourceforge.io/) PDF reader APP. 
+Afterwards, I could easitly 'export' all highlighted words into a 'text' file and they are my new vocabulary words~
+
+So, one thing remains to be done, is how to get the Chinese translation of these new words and it would be even better to have example english sentence containing those new words.
+
+I don't want to google search each new word and 'copy & paste' translations or sentences, I'd like to make this process automatically.
+
+So, first, I found some already-bulit tool in R, which interactes with an APP called 'Youdao', a very population 'Chinese<->English' dictionary.
+The R package is [`RYoudaoTranslate`](https://cran.r-project.org/web/packages/RYoudaoTranslate/index.html), [some modificaitons](http://cxy.rbind.io/post/translate/) have been made to make it more 'readable'.
+
+I looked at the source code of this R package and below is a short demo showing what the package has done without installing the package and I've added some modifications to make it more 'customized'.
+
+```{r}
+library(bitops)
+library(RCurl)
+library(rjson)
+library(stringr)
+
+# https://cran.r-project.org/web/packages/RYoudaoTranslate/index.html
+# http://cxy.rbind.io/post/translate/
+
+## use youdaoapi to get the chinese translation of english words
+# specify inquire word, user name and password for youdao api
+word='rover';
+
+apikey = "498375134"
+keyfrom = "JustForTestYouDao"
+
+
+cmd=paste("http://fanyi.youdao.com/openapi.do?keyfrom=",keyfrom,"&key=",apikey,"&type=data&doctype=json&version=1.1&q=",
+             word,sep="")
+url=getURL(cmd)
+obj=fromJSON(url)
+obj
+# based on the output of obj, select relevant information
+data=NULL;
+for(i in obj$web){
+  data = c(data,paste(i$key,paste(i$value,collapse=""),sep=","))
+}
+paste0(c(word,obj$basic$`us-phonetic`,data),collapse = '; ')
+
+
+# wrap them up
+apikey = "498375134"
+keyfrom = "JustForTestYouDao"
+translate<-function(apikey,keyfrom,word){
+  cmd=paste("http://fanyi.youdao.com/openapi.do?keyfrom=",keyfrom,"&key=",apikey,"&type=data&doctype=json&version=1.1&q=",
+            word,sep="")
+  url=getURL(cmd)
+  obj=fromJSON(url)
+  obj
+  # based on the output of obj, select relevant information
+  
+  data=NULL;
+  for(i in obj$web){
+    data = c(data,paste(i$key,paste(i$value,collapse=""),sep=","))
+  }
+  paste0(c(word,obj$basic$`us-phonetic`,data),collapse = '; ')
+}
+translate(apikey,keyfrom,'rover')
+```
+
+My problem with is tool is that, it only gives me short phrases or brief Chinese translation.
+My dreaming tool would be more example sentences containing this word, which would make the memorization more easily.
+
+As I'm using web scraping to do some bioinformatic analysis every now and then, I wonder if I could make a tool myself, customized at my needs.
+
+Below I'll first show step-by-step how to 'talk' with Youdao website to get english example sentences. Then, in the end of this post, there is a wrapper function which you could try it out yourself~
+
+```{r}
+## use web-scraping to get example sentences
+library(rvest)
+library(XML)
+word='rover';
+
+# inquire
+url=paste0('http://dict.youdao.com/example/blng/eng/',word,'/#keyfrom=dict.main.moreblng');
+#url<-'http://dict.youdao.com/example/blng/eng/rover/#keyfrom=dict.main.moreblng'
+# parse the returned html page
+x=read_html(url)
+
+# if you want to look what above url returns, save x in a 'xx.html' file and browse it
+if(F){
+  sink("test.html");
+  xmlNode(x)
+  sink()
+  browseURL('test.html')
+}
+
+results=html_node(x,'.results-content') #use CSS selector to extract wanted contents
+egs=html_nodes(results, "ul > li") #https://stackoverflow.com/questions/52650604/scraping-li-elements-with-rvest 
+
+# egs contain all example sentences
+# look at the first example sentence
+eg1=html_text(egs[[1]],trim=TRUE)
+out=eg1 %>% gsub(pattern="\\t",replacement="",.) %>% 
+  strsplit(.,'\n\\s+') %>% unlist(.)
+out
+# extract sentences for all example sentences
+eg.df=t(sapply(1:length(egs),function(i){
+  eg1=html_text(egs[[i]],trim=TRUE)
+  out=eg1 %>% gsub(pattern="\\t",replacement="",.) %>% 
+    strsplit(.,'\n\\s+') %>% unlist(.)
+  out}
+))
+dim(eg.df) #30 example sentences in total
+head(eg.df)  
+```
+
+Below is a wrapper R funciton doing exactly the same task as above.
+Feel free to copy and paste, try it yourself~
+
+```{r}
+library(rvest)
+library(XML)
+
+give_me_english_sentences<-function(word){
+  url=paste0('http://dict.youdao.com/example/blng/eng/',word,'/#keyfrom=dict.main.moreblng');
+  #url<-'http://dict.youdao.com/example/blng/eng/rover/#keyfrom=dict.main.moreblng'
+  x=read_html(url)
+  
+  results=html_node(x,'.results-content')
+  egs=html_nodes(results, "ul > li") #select 
+  eg.df=t(sapply(1:length(egs),function(i){
+    eg1=html_text(egs[[i]],trim=TRUE)
+    out=eg1 %>% gsub(pattern="\\t",replacement="",.) %>% 
+      strsplit(.,'\n\\s+') %>% unlist(.)
+    out}
+  ))
+  eg.df
+}
+give_me_english_sentences('rover')
+give_me_english_sentences('fray')
+```
+
+
+```{r}
+devtools::session_info()
+```

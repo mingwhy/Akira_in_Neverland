@@ -1,0 +1,18 @@
+---
+title: "Unexpected Connection"
+description: 
+  Hi there,
+  
+  Thanks for dropping by.
+  
+  This is Ming, currently working as a post-doc in UW, working on computational biology and bioinformatics.
+  
+  I use this blog to record my thinking, coding and sharing.
+  
+  You can find me on [Twitter](https://twitter.com/tiramisu916)
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```

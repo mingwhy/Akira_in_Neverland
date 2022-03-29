@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>Akira in Neverland</title>
+    <link>https://cranky-shaw-466a31.netlify.app/</link>
+    <atom:link href="https://cranky-shaw-466a31.netlify.app/index.xml" rel="self" type="application/rss+xml"/>
+    <description>A personal blog
+</description>
+    <generator>Distill</generator>
+    <lastBuildDate>Sun, 16 Jan 2022 00:00:00 +0000</lastBuildDate>
+    <item>
+      <title>TechNote: Rank Aggregation</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2022-01-15-technote-rank-aggregation</link>
+      <description>Rank Aggregation Methods</description>
+      <category>biostatistics</category>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2022-01-15-technote-rank-aggregation</guid>
+      <pubDate>Sun, 16 Jan 2022 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2022-01-15-technote-rank-aggregation/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>MathNote: Random Matrix Theory and its applications in biology</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2022-01-15-mathnote-random-matrix-theory-and-its-applications-in-biology</link>
+      <description>Brief intro of Random Matrix Theory and its applications in biology</description>
+      <category>matrix</category>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2022-01-15-mathnote-random-matrix-theory-and-its-applications-in-biology</guid>
+      <pubDate>Sat, 15 Jan 2022 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2022-01-15-mathnote-random-matrix-theory-and-its-applications-in-biology/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>TechNote: Thresholding a correlation matrix</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2022-01-14-technote-thresholding-a-correlation-matrix</link>
+      <description>Some R packages help guide the selection of the threshold transforming a weighted correlation matrix into a binary one</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2022-01-14-technote-thresholding-a-correlation-matrix</guid>
+      <pubDate>Wed, 12 Jan 2022 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2022-01-14-technote-thresholding-a-correlation-matrix/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>SurvivalAnalysis: From life table to survival curves</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2022-01-03-survivalanalysis</link>
+      <description>Hands on Survival Analysis</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2022-01-03-survivalanalysis</guid>
+      <pubDate>Sun, 02 Jan 2022 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2022-01-03-survivalanalysis/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>Heatmap: Pick a Palette</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2022-01-01-heatmappick-a-palette</link>
+      <description>Pick color palettes in heatmaps</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2022-01-01-heatmappick-a-palette</guid>
+      <pubDate>Sat, 01 Jan 2022 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2022-01-01-heatmappick-a-palette/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>TechNote: Enable OpenMP on macOS Mojave</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-17-technote-enable-openmp-on-macos-mojave</link>
+      <description>Parallel Computing in R</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-17-technote-enable-openmp-on-macos-mojave</guid>
+      <pubDate>Tue, 14 Dec 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Metric: measruing the distance between two distributions</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-14-measuringthedistancebetweentwodistributions</link>
+      <description>Three metrics quantifying the differnece between two distributions.</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-14-measuringthedistancebetweentwodistributions</guid>
+      <pubDate>Sun, 12 Dec 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-12-14-measuringthedistancebetweentwodistributions/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>ggplot: Customize enrichment heatmap </title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-ggplot-customize-enrichment-heatmap</link>
+      <description>Customize enrichment heatmap in R with ggplot2</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-ggplot-customize-enrichment-heatmap</guid>
+      <pubDate>Sat, 11 Dec 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-ggplot-customize-enrichment-heatmap/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>Bioinformatics: biomaRt</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-bioinformatics-use-cases-of-r-package-biomart</link>
+      <description>Use cases of R package: biomaRt</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-bioinformatics-use-cases-of-r-package-biomart</guid>
+      <pubDate>Thu, 09 Dec 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Bioinformatics: GO.db, AnnotationDbi, and clusterProfiler</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-bioinformatics-use-cases-of-r-packages-godb-annotationdbi-and-clusterprofiler</link>
+      <description>Use cases of R packages: GO.db, AnnotationDbi, and clusterProfiler</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-bioinformatics-use-cases-of-r-packages-godb-annotationdbi-and-clusterprofiler</guid>
+      <pubDate>Wed, 08 Dec 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-bioinformatics-use-cases-of-r-packages-godb-annotationdbi-and-clusterprofiler/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>Image analysis: Measuring fly eye size using R</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-image-analysis-measuring-fly-eye-size-using-r</link>
+      <description>Use R to extract image features</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-image-analysis-measuring-fly-eye-size-using-r</guid>
+      <pubDate>Sat, 04 Dec 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-image-analysis-measuring-fly-eye-size-using-r/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>Web scraping: Inquire a dictionary to get english sentences in R</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-web-scraping-inquire-a-dictionary-to-get-english-sentences-in-r</link>
+      <description>Learn english in R with web scraping</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-web-scraping-inquire-a-dictionary-to-get-english-sentences-in-r</guid>
+      <pubDate>Thu, 02 Dec 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Web scraping: Retrieve human orthologs of fly genes in R</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-web-scraping-retrieve-human-orthologs-of-fly-genes-in-r</link>
+      <description>Retrieve human orthologs of fly genes in R through web scraping</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-web-scraping-retrieve-human-orthologs-of-fly-genes-in-r</guid>
+      <pubDate>Wed, 01 Dec 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Web scraping: A R interface to 'ID Validator' in FlyBase</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-a-r-interface-to-id-validator-in-flybase</link>
+      <description>Performe fly gene ID validation inside R through web scraper</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-12-11-a-r-interface-to-id-validator-in-flybase</guid>
+      <pubDate>Tue, 30 Nov 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>05.scRNA-seq: fit a Gamma-Normal mixture model with real single cell data</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr05</link>
+      <description>Fit a Gamma-Normal mixture model to single cell data and estimate parameters</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr05</guid>
+      <pubDate>Thu, 25 Nov 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr05/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>04.scRNA-seq: fit P, NB, ZIP, ZINB models in a Bayesian framework with real single cell data</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr04</link>
+      <description>Fit the four statistical models to fly single cell data and estimate parameters in a Bayesian framework</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr04</guid>
+      <pubDate>Wed, 24 Nov 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>03.scRNA-seq: fit P, NB, ZIP, ZINB models in a Bayesian framework with simulated data</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr03</link>
+      <description>Simulate data following the four statistical models and estimate parameters in a Bayesian framework with R package rstanarm, brms, and cmdstanr.</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr03</guid>
+      <pubDate>Tue, 23 Nov 2021 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>02.scRNA-seq: fit ZIP model with cmdstanr R package</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr02</link>
+      <description>Simulate data following Zero-inflated Possion model and estimate parameters in a Bayesian framework</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr02</guid>
+      <pubDate>Mon, 22 Nov 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr02/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>01.scRNA-seq: fit P, NB, ZIP, ZINM models using simulated data</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr01</link>
+      <description>Simulate data following one of the four distritutions and estimate parameters in R.</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr01</guid>
+      <pubDate>Sun, 21 Nov 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr01/distill-preview.png" medium="image" type="image/png" width="1248" height="1536"/>
+    </item>
+    <item>
+      <title>00.scRNA-seq: fit zero proportions</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr00</link>
+      <description>I'd create a loom object containing test scRNA-seq data and fit simple model to assess 0 inflation.</description>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr00</guid>
+      <pubDate>Sat, 20 Nov 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://cranky-shaw-466a31.netlify.app/posts/2021-11-23-scrnageneexpr00/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+    </item>
+    <item>
+      <title>Blog through Rstudio using distill</title>
+      <dc:creator>Ming</dc:creator>
+      <link>https://cranky-shaw-466a31.netlify.app/posts/2021-11-20-blog-through-rstudio-using-distill</link>
+      <description>I'd show how to set up a blog inside Rstudio aided by `distill` R package, sync blog contents and configurations to Github, and deploy blog on Netlify.</description>
+      <category>bioinformatics</category>
+      <guid>https://cranky-shaw-466a31.netlify.app/posts/2021-11-20-blog-through-rstudio-using-distill</guid>
+      <pubDate>Fri, 19 Nov 2021 00:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

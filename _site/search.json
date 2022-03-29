@@ -1,0 +1,20 @@
+{
+  "articles": [
+    {
+      "path": "about.html",
+      "title": "Unexpected Connection",
+      "description": "Hi there,\nThanks for dropping by.\nThis is Ming, currently working as a post-doc in UW, working on computational biology and bioinformatics.\nI use this blog to record my thinking, coding and sharing.\nYou can find me on [Twitter](https://twitter.com/tiramisu916)",
+      "author": [],
+      "contents": "\n\n\n\n",
+      "last_modified": "2022-03-26T10:49:46-07:00"
+    },
+    {
+      "path": "index.html",
+      "title": "Akira in Neverland",
+      "author": [],
+      "contents": "\n\n\n\n",
+      "last_modified": "2022-03-26T10:49:48-07:00"
+    }
+  ],
+  "collections": ["posts/posts.json"]
+}

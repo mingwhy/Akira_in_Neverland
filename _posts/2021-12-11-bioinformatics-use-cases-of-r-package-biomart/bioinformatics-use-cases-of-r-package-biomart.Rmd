@@ -1,0 +1,99 @@
+---
+title: "Bioinformatics: biomaRt"
+description: |
+   Use cases of R package: biomaRt
+author: Ming
+date: 2021-12-09
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F,warning = F) 
+```
+
+
+biomaRt Manual: https://www.bioconductor.org/packages/devel/bioc/vignettes/biomaRt/inst/doc/biomaRt.html
+
+```{r echo=T}
+library(AnnotationDbi)
+library(org.Dm.eg.db,verbose=F,quietly=T)
+
+library("biomaRt")
+listMarts()
+ensembl <- useMart("ensembl")
+
+## Selecting a BioMart database and dataset
+datasets <- listDatasets(ensembl)
+dim(datasets)
+head(datasets)
+grep('dmel',datasets$dataset)
+datasets[grep('dmel',datasets$dataset),]
+ensembl = useDataset("dmelanogaster_gene_ensembl",mart=ensembl)
+
+# or in one step:
+ensembl = useMart("ensembl",dataset="dmelanogaster_gene_ensembl")
+
+# build a biomaRt query: filters, attributes and values.
+# Filters define a restriction on the query. 
+filters = listFilters(ensembl)
+dim(filters)
+filters[1:5,]
+grep('gene',filters$name)
+filters[grep('gene',filters$name),]
+
+# Attributes define the values we are interested in to retrieve
+attributes = listAttributes(ensembl)
+dim(attributes)
+attributes[1:5,]
+grep('flybase',attributes$name)
+attributes[grep('flybase',attributes$name),]
+grep('Interpro ID',attributes$description)
+grep('PANTHER ID',attributes$description)
+grep('Pfam ID',attributes$description)
+db<-c('Family','CDD ID','Gene3D ID','HAMAP ID','Interpro ID',
+      'PANTHER ID','Pfam ID','SMART ID','TIGRFAM ID');
+length(db)
+lapply(db,function(x){
+  attributes[grep(x,attributes$description),]})
+
+# The getBM() function is the main query function in biomaRt, which requires four main arguments:
+## attributes: is a vector of attributes that one wants to retrieve (= the output of the query).
+## filters: is a vector of filters that one wil use as input to the query.
+## values: a vector of values for the filters. In case multple filters are in use, the values argument requires a list of values where each position in the list corresponds to the position of the filters in the filters argument (see examples below).
+## mart: is an object of class Mart, which is created by the useMart() function. 
+
+## sample some genes from 'org.Dm.eg.db'
+# which kinds of data are retrievable via `select`
+columns(org.Dm.eg.db)
+# use keys as query to extract other column information
+set.seed(123)
+(k=sample(keys(org.Dm.eg.db,keytype='ENTREZID'),5))
+gene.df <- AnnotationDbi::select(org.Dm.eg.db, keys=k, 
+                                 keytype = "ENTREZID",
+                                 c("SYMBOL","FLYBASE","GENENAME","UNIPROT"))
+head(gene.df)
+
+out<-getBM(attributes=c('entrezgene_id','flybase_gene_id','flybasename_gene',
+                        'pfam', 'interpro','hmmpanther'), 
+      filters = 'entrezgene_id', 
+      values = gene.df$ENTREZID, 
+      mart = ensembl)
+head(out)
+
+## Searching for datasets, filters and attributes
+searchDatasets(mart = ensembl, pattern = "dmel")
+searchAttributes(mart = ensembl, pattern = "dmel")
+searchFilters(mart = ensembl, pattern = "ensembl.*id")
+
+## Attribute Pages
+pages = attributePages(ensembl)
+pages
+head(listAttributes(ensembl, page="feature_page"))
+```
+
+```{r}
+devtools::session_info()
+```

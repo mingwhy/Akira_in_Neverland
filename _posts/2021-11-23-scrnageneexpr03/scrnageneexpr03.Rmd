@@ -1,0 +1,285 @@
+---
+title: "03.scRNA-seq: fit P, NB, ZIP, ZINB models in a Bayesian framework with simulated data"
+description: |
+  Simulate data following the four statistical models and estimate parameters in a Bayesian framework with R package rstanarm, brms, and cmdstanr.
+author: Ming
+date: 2021-11-23
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this post, I'd fit the four models in a Bayesian framework with simulated data.
+
+## set up formulas
+```{r}
+# simulate data and fit model using rstan
+library(rstanarm)
+#https://mc-stan.org/rstanarm/reference/stan_glm.html
+
+f0='y ~ 1' #intercept only model
+f1='y ~ 1+group' #with one covariate
+nCores=2;
+n=1000;
+
+seed=2049;
+group <- sample(c(0,1), size = n, replace = TRUE) #covariate
+```
+
+## Poisson model
+```{r}
+
+# simulate data following Poisson model and fit model
+seed=2049;
+simu.dat=data.frame(y=rpois(n,lambda=2),group=group)
+
+m0 <-   stan_glm(as.formula(f0),
+                             family = poisson,#default link = "log" 
+                             data = simu.dat,
+                             cores = nCores,
+                             seed = seed,
+                             refresh = 0)
+m0$coefficients
+exp(m0$coefficients)
+
+m1 <-   stan_glm(as.formula(f1),
+                 family = poisson,#default link = "log" 
+                 data = simu.dat,
+                 cores = nCores,
+                 seed = seed,
+                 refresh = 0)
+m1$coefficients
+exp(m1$coefficients) 
+
+# use loo to compare two models
+#http://mc-stan.org/loo/reference/loo_compare
+#https://github.com/churchill-lab/scRATE/blob/master/R/compare_count_models.R
+#https://mc-stan.org/loo/reference/loo-glossary.html
+#The ELPD is the theoretical expected log pointwise predictive density for a new dataset (Eq 1 in VGG2017), which can be estimated, e.g., using cross-validation. elpd_loo is the Bayesian LOO estimate of the expected log pointwise predictive density (Eq 4 in VGG2017) and is a sum of N individual pointwise log predictive densities. 
+
+library(loo)
+loo_list=list()
+loo_list[['m0']]=loo(m0)
+loo_list[['m1']]=loo(m1)
+elpd_loo <- do.call(loo_compare, list(loo_list))
+elpd_loo
+#the best model is in the 1st row
+```
+
+## Negative Binomial model 
+```{r}
+
+# simulate data following Negative Binomial model and fit model
+#http://mc-stan.org/rstanarm/reference/neg_binomial_2.html
+#https://mc-stan.org/rstanarm/reference/stan_glm.html
+#For negative binomial models prior_aux controls "reciprocal_dispersion", 
+#which is similar to the "size" parameter of rnbinom: 
+#smaller values of "reciprocal_dispersion" correspond to greater dispersion. 
+
+## 1) test model
+seed=2049
+simu.dat=data.frame(y=MASS::rnegbin(1000,mu=2,theta=0.5),group=group)
+seed=2049
+simu.dat=data.frame(y=rnbinom(1000,mu=2,size=0.5),group=group)
+
+m0=stan_glm(as.formula(f0),
+            family = neg_binomial_2, #default, link='log'
+            data = simu.dat,
+            cores = nCores,
+            seed = seed,
+            refresh = 0)
+
+m0
+m0$coefficient
+exp(m0$coefficients) #default, link='log'
+
+## 2) model comparison
+simu.dat=data.frame(y=MASS::rnegbin(1000,mu=exp(2+1.5*(group==1)),
+                                    theta=0.5),group=group)
+
+m0=stan_glm(as.formula(f0),
+            family = neg_binomial_2, #default, link='log'
+            data = simu.dat,
+            cores = nCores,
+            seed = seed,
+            refresh = 0)
+
+m0
+m0$coefficient
+#exp(fit.out$coefficients) #default, link='log'
+
+m1=stan_glm(as.formula(f1),
+            family = neg_binomial_2, #default, link='log'
+            data = simu.dat,
+            cores = nCores,
+            seed = seed,
+            refresh = 0)
+m1
+m1$coefficients
+
+loo_list[['m0']]=loo(m0)
+loo_list[['m1']]=loo(m1)
+loo_compare(loo_list)
+```
+
+## Zero-inflated Poisson model
+
+A Zero-inflated Possion model has two component: inlfated 0 and a Possion distribution.
+
+Thus, the probability of observing a 0 equals:
+
+$$ P(Y=0) = \pi + (1-\pi) *Poisson(0|lambda) $$
+
+
+```{r}
+
+# use brms package to fit zero-inflated models
+library(brms);
+adapt_delta=0.8;
+
+options(brms.backend = "cmdstanr")
+
+# simulate data following zero-inflated Possion model and fit model
+#https://stats.stackexchange.com/questions/189005/simulate-from-a-zero-inflated-poisson-distribution/189052
+pi=0.2; lambda=2
+y=ifelse(rbinom(n, size = 1, prob = 1-pi) == 0, 0, rpois(n, lambda = lambda))
+simu.dat=data.frame(y=y)
+
+#https://stat.ethz.ch/R-manual/R-devel/library/stats/html/NegBinomial.html
+myprior <- get_prior(bf(as.formula(f0), zi ~ 1),
+                       family = zero_inflated_poisson(),
+                       data = simu.dat)
+myprior_values <- eval(parse(text=gsub("student_t", "c", myprior$prior[1])))
+m0<- brm(bf(as.formula(f0), zi ~ 1),
+                        family = zero_inflated_poisson(),
+                        data = simu.dat,
+                        prior = myprior,
+                        control = list(adapt_delta = adapt_delta),
+                        cores = nCores,
+                        seed = seed,
+                        refresh = 500)
+m0
+x=brms::posterior_summary(m0)
+x
+# possion, lambda, link function: mu=log
+exp(x[1,1]) #lambda
+# zero inflation, link function: zi = logit 
+exp(x[4,1])/(1+exp(x[4,1])) #p
+```
+
+## Zero-inflated Negative Binomial model
+
+A Zero-inflated Negative Binomial model has two component: inlfated 0 and a Negative Binomial distribution.
+
+Thus, the probability of observing a 0 equals:
+
+$$ P(Y=0) = \pi + (1-\pi) *NB(0|mu,size) $$
+
+```{r}
+
+# simulate data following zero-inflated Negative Binomial model and fit model
+set.seed(6)
+pi=0.3
+z <- rbinom(n = n, size = 1, prob = 1-pi) 
+# mean(z == 0)
+y_sim <- ifelse(z == 0, 0, 
+                rnbinom(n = n, 
+                        mu = exp(5), 
+                        size = 3))
+simu.dat=data.frame(y=y_sim,group=group)
+
+message('Fitting data with Zero-Inflated Negative Binomial model...')
+myprior <- get_prior(bf(as.formula(f0), zi ~ 1),
+                       family = zero_inflated_negbinomial(),
+                       data = simu.dat)
+myprior_values <- eval(parse(text=gsub("student_t", "c", myprior$prior[1])))
+m0 <- brm(bf(as.formula(f0), zi ~ 1),
+                         family = zero_inflated_negbinomial(),
+                         data = simu.dat,
+                         control = list(adapt_delta = adapt_delta),
+                         prior = myprior,
+                         cores = nCores,
+                         seed = seed,
+                         refresh = 500)
+m0
+#Family: zero_inflated_negbinomial 
+#Links: mu = log; shape = identity; zi = logit 
+x=posterior_summary(m0)
+x
+# possion, lambda, link function: mu=log
+x[1,1] #lambda
+x[3,1] #shape or size
+# zero inflation, link function: zi = logit 
+exp(x[5,1])/(1+exp(x[5,1])) #prob
+
+## add covarite
+set.seed(6)
+pi=0.3
+z <- rbinom(n = n, size = 1, prob = 1-pi) 
+# mean(z == 0)
+y_sim <- ifelse(z == 0, 0, 
+                rnbinom(n = n, 
+                        mu = exp(5+1.5*(group==1)), 
+                        size = 3))
+simu.dat=data.frame(y=y_sim,group=group)
+
+message('Fitting data with Zero-Inflated Negative Binomial model...')
+myprior <- get_prior(bf(as.formula('y~1'), zi ~ 1),
+                       family = zero_inflated_negbinomial(),
+                       data = simu.dat)
+myprior_values <- eval(parse(text=gsub("student_t", "c", myprior$prior[1])))
+m0<-brm(bf(as.formula('y~1'), zi ~ 1),
+        family = zero_inflated_negbinomial(),
+        data = simu.dat,
+        control = list(adapt_delta = adapt_delta),
+        prior = myprior,
+        cores = nCores,
+        seed = seed,
+        refresh = 500)
+x=brms::posterior_summary(m0)
+x
+
+myprior <- get_prior(bf(as.formula('y~1+group'), zi ~ 1),
+                     family = zero_inflated_negbinomial(),
+                     data = simu.dat)
+m1 <- brm(bf(as.formula('y~1+group'), zi ~ 1),
+                         family = zero_inflated_negbinomial(),
+                         data = simu.dat,
+                         control = list(adapt_delta = adapt_delta),
+                         prior = myprior,
+                         cores = nCores,
+                         seed = seed,
+                         refresh = 500)
+
+
+x=brms::posterior_summary(m1)
+x
+#Family: zero_inflated_negbinomial 
+#Links: mu = log; shape = identity; zi = logit 
+# possion, lambda, link function: mu=log
+x[1,1] #lambda
+x[4,1] #shape or size
+x[3,1] #covariate beta
+# zero inflation, link function: zi = logit 
+exp(x[6,1])/(1+exp(x[6,1])) #prob
+
+loo_list=list()
+loo_list[['m0']]=loo(m0)
+loo_list[['m1']]=loo(m1)
+loo_compare(loo_list)
+```
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+

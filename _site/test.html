@@ -1,0 +1,827 @@
+<<!DOCTYPE html>
+<html>
+<head>
+<title>DRSC - DRSC Integrative Ortholog Prediction Tool</title>
+<meta name="description" content="Search 10 ortholog algorithms at once with DRSC integrated ortholog prediction tool (finds homologs among flies, fish, yeast, human, mice, worms).">
+<link rel="stylesheet" type="text/css" href="../css/bootstrap.4.3.1.css">
+<style type="text/css">
+<!--/* <![CDATA[ */
+    #mbodytd {
+      z-index: 0;
+    }
+    div.menuDiv {
+      z-index: 12;
+    }
+
+   .ortholog th{
+    text-align:center;
+   }
+
+    #uptorrlink {
+        position: relative;
+        top: -10px;
+        left: 20px;
+    }
+    #uptorrlink2 {
+        position: relative;
+        top: 0px;
+        left: 20px;
+    }
+    div.utlink {
+      float: left;
+      display: none;
+      z-index: 11;
+    }
+    div.utlink form {
+      margin: 0px;
+    }
+    div.utlink form * {
+      margin: 0px;
+    }
+
+
+    #DnldFrm1 {
+      position: relative;
+      top: -10px;
+    }
+    div.DnldFrm form {
+      position: relative;
+      margin: 0px auto;
+    }
+    div.DnldFrm form * {
+      margin: 0px auto;
+    }
+
+
+/* ]]> */-->
+</style>
+<script src="/js/jquery-3.6.0.min.js" type="text/JavaScript"></script><script src="/js/RNAi_google_analytics.js" type="text/JavaScript"></script><script src="/DRSC_rowtools.js" type="text/JavaScript"></script><script src="/js/jquery.smartmenus.js" type="text/JavaScript"></script><script type="text/JavaScript">//<![CDATA[
+
+
+   // Select AGR
+
+
+    //test function
+    function blingbling(msg) {
+        var astr = "===>> ##" + msg + "## <<===";
+        alert(astr);
+    }
+
+    // list of all the search checkbox IDs except for the All checkbox
+    var searchIDs = ["S.Entrez GeneID", "S.GenBank", "S.Gene name", "S.Uniprot", "S.Ensembl", "S.HGNC", "S.MGI", "S.FLYBASE", "S.WormBase", "S.ZFIN", "S.Xenbase", "S.SGD", "S.CG", "S.Locus_tag", "S.genolevures", "S.RGD", "S.PomBase", "S.amplicon_id", "S.TRiP_num"];
+
+    // function to uncheck the All checkbox or all of the other 
+    // search type checkboxes
+    function uncheck_searches(caller, callerID) {
+        //alert(callerID);
+
+        chbox = document.getElementById(callerID);
+        if (chbox.checked == false) { return; }
+
+        if (callerID == "***") { // uncheck everything else
+            for (var st = 0; st < searchIDs.length; st++) {
+                //alert(searchIDs[st]);
+                var tbox = document.getElementById(searchIDs[st]);
+                tbox.checked = false;
+            }
+        } else {
+            var tbox = document.getElementById("***");
+            tbox.checked = false;
+        }
+    }
+
+
+    // lookup table for which tools are available for a given
+    // species pair
+    var spPLookup = [
+        [ // Species 1 = 4896 (Fission yeast)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 4932 (Yeast)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 6239 (Worm)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 7227 (Fly)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 ], // Sp 2 = 7955 (Zebrafish)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // Sp 2 = 9606 (Human)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 7955 (Zebrafish)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 ], // Sp 2 = 7227 (Fly)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 ], // Sp 2 = 9606 (Human)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 ], // Sp 2 = 10090 (Mouse)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 8364 (Western clawed frog)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 9606 (Human)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 ], // Sp 2 = 7227 (Fly)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 ], // Sp 2 = 7955 (Zebrafish)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 10090 (Mouse)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1 ], // Sp 2 = 7955 (Zebrafish)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 10116 (Rat)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ ], // Sp 2 == Sp 1, not allowed
+            [ ], // for all no values..
+             [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 0 (All)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ], // Sp 2 = 3702 (Thale cress)
+        ],
+        [ // Species 1 = 3702 (Thale cress)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 4896 (Fission yeast)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 4932 (Yeast)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 6239 (Worm)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 7227 (Fly)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 7955 (Zebrafish)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0 ], // Sp 2 = 8364 (Western clawed frog)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 9606 (Human)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 10090 (Mouse)
+            [ 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0 ], // Sp 2 = 10116 (Rat)
+            [ ], // for all no values..
+             [ ], // Sp 2 == Sp 1, not allowed
+        ],
+        ];
+
+
+    // lookup for species ids, index must match that of spPLookup
+    var spLookup = [
+        4896, // (Fission yeast)
+        4932, // (Yeast)
+        6239, // (Worm)
+        7227, // (Fly)
+        7955, // (Zebrafish)
+        8364, // (Western clawed frog)
+        9606, // (Human)
+        10090, // (Mouse)
+        10116, // (Rat)
+        0, // (All)
+        3702, // (Thale cress)
+    ];  // the end 
+
+
+    // lookup for tool checkbox ids, index must match that
+    // of spPLookup
+    var toolIDs = [
+        "T-Compara",
+        "T-eggNOG",
+        "T-HGNC",
+        "T-Hieranoid",
+        "T-Homologene",
+        "T-Inparanoid",
+        "T-Isobase",
+        "T-OMA",
+        "T-OrthoDB",
+        "T-OrthoFinder",
+        "T-OrthoInspector",
+        "T-orthoMCL",
+        "T-Panther",
+        "T-Phylome",
+        "T-RoundUp",
+        "T-TreeFam",
+        "T-User_Submission",
+        "T-ZFIN",
+     ];
+
+
+
+    // update the Max Score text to reflect the options available/selected
+    function update_max_score() {
+        var all=0;
+        if ($("#alltools").prop("checked")) {
+            // if ALL is checked, just count visible tools
+            for (var t = 0; t < toolIDs.length; t++) {
+                if ($("#" + toolIDs[t]).is(":visible")) {
+                    all += 1;
+                }
+            }
+        } else {
+            // ALL not checked, count visible AND checked tools
+            for (var t = 0; t < toolIDs.length; t++) {
+                var curchkbox = $("#" + toolIDs[t]);
+                if (curchkbox.is(":visible") && curchkbox.prop("checked")) {
+                    all += 1;
+                }
+            }
+        }
+        $("span.allmax").text("All");
+    }
+
+
+    // function to uncheck the All checkbox or all of the other prediction
+    // tool checkboxes
+
+    function uncheck_predictions(callerID) {
+
+	console.log ("uncheck predictions");
+        //var callerID = $(this).id;
+        //alert($(this).html());
+
+        //chbox = document.getElementById(callerID);
+        //if (chbox.checked == false) { return; }
+        if (this.checked == false) { return; }
+
+	console.log ("--- uncheck predictions "+ callerID);
+
+        if (callerID == "alltools") { // uncheck everything else
+	    console.log ("2--- uncheck predictions "+ toolIDs[t]);					   
+            for (var t = 0; t < toolIDs.length; t++) {
+	    console.log ("3--- uncheck predictions "+ toolIDs[t]);					   
+
+                //var tbox = document.getElementById(toolIDs[t]);
+                //tbox.checked = false;
+                jQuery("#" + toolIDs[t]).prop("checked", false);
+            }
+        } else {
+            //var tbox = document.getElementById("alltools");
+            //tbox.checked = false;
+            $("#alltools").prop("checked", false);
+        }
+        update_max_score();
+    }
+
+
+    // hide and show prediction tools based on a list of which are valid
+    // for this pair of species
+
+
+    function toggleTools(validList) {
+        var all=0;
+        for (var i = 0; i < validList.length; i++) {
+            if (validList[i]) {
+                all += 1;
+                $("#" + toolIDs[i]).parents("label").show('fast');
+            } else {
+                $("#" + toolIDs[i]).parents("label").hide();
+            }
+        }
+        update_max_score();
+        //$("span.allmax").text("All (max score = " + all + ")")
+    }
+
+
+    // things to do as soon as the DOM is loaded
+    $(function() {
+
+          $("select.input_species").change(function() {
+	      console.log ("++ Input Species Change");
+              val1 = $("[name=input_species]").val();
+              val2 = $("[name=output_species]").val();
+	      
+	      // if all is selected, select all tools..
+
+	      if (val2==0){
+		  if(jQuery("#alltools").is(':checked')){
+		  }  else {
+		     //jQuery("#alltools").prop('checked', true);
+		     jQuery("#alltools").click();
+		  }
+              } else if (val1 == val2) {
+
+		  // these are paralogs
+
+              } else {
+                  sp1idx = sp2idx = -1;
+                  for (var i = 0; i < spLookup.length; i++) {
+                      if (val1 == spLookup[i]) {
+                          sp1idx = i;
+                      }
+                      if (val2 == spLookup[i]) {
+                          sp2idx = i;
+                      }
+                  }
+                  if (-1 == sp1idx) {
+                      alert("Unable to look up Species 1 = " + val1);
+                  } else if (-1 == sp2idx) {
+                      alert("Unable to look up Species 2 = " + val2);
+                  } else {
+                      toggleTools(spPLookup[sp1idx][sp2idx]);
+                  }
+
+              }
+          });
+
+          // setup the onclick actions for the prediction tool checkboxes
+          for (var t = 0; t < toolIDs.length; t++) {
+              $("#" + toolIDs[t]).click(
+                  function() {uncheck_predictions( t );});
+          }
+
+	}
+
+    );
+
+//]]></script><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body bgcolor="#FDFAF1" class="drsc_body">
+
+
+
+    <meta name="description" content="">
+<meta name="author" content="">
+<script src="/js/fontawesome-all.min.js"></script><script src="../js/jquery-3.6.0.min.js"></script><script src="../templates/js/jquery.csv.js"></script><script src="../templates/js/bootstrap.bundle.js"></script><script src="../templates/js/dataTables.js"></script><link rel="stylesheet" href="../templates/css/dataTables.bootstrap4.css">
+<link rel="stylesheet" href="../templates/css/searchPanes.dataTables.min.css">
+<link rel="stylesheet" href="../templates/css/select.bootstrap4.min.css">
+<link rel="stylesheet" href="../templates/css/buttons.bootstrap4.min.css">
+<script src="../templates/js/dataTables.bootstrap4.js"></script><script src="../templates/js/dataTables.buttons.min.js"></script><script src="../templates/js/dataTables.select.min.js"></script><script src="../templates/js/dataTables.searchPanes.min.js"></script><script src="../templates/js/buttons.bootstrap4.min.js"></script><script src="../templates/js/buttons.html5.min.js"></script><script src="../templates/js/buttons.colVis.min.js"></script><script src="../templates/js/jszip.min.js"></script><!-- Google Analytics, just because it's useful to know how much use our tools are getting when grant renewal comes up --><script>
+
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+        ga('create', 'UA-49360036-1', 'flyrnai.org');
+        ga('send', 'pageview');
+
+    </script><link href="https://fonts.googleapis.com/css?family=Lato%7COpen+Sans&amp;display=swap" rel="stylesheet">
+<style>
+        .sectionText {
+            font-size:1.2em;
+            font-weight: bold;
+        }
+    </style>
+<!--[if lt IE 7]><p class=chromeframe>Your browser is <em>older</em> <a href="http://browsehappy.com/">Upgrade to a
+    different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a>
+    to experience this site.</p><![endif]--><header><nav class="navbar navbar-expand-md navbar-dark" style="background-color: #49172D !important"><a href="http://hms.harvard.edu" class="navbar-brand"> <img style="height:26px" alt="Brand" src="//static.hwpi.harvard.edu/files/styles/os_files_xxlarge/public/iccb/files/branding_top.png?m=1462213676&amp;itok=igvSfIhX"></a>
+
+        <a class="navbar-brand" href="/cgi-bin/DRSC_orthologs.pl">DIOPT Ortholog Finder  </a>
+
+
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+            <ul class="navbar-nav ml-auto">
+<li class="nav-item"> 
+		<a class="nav-link" href="http://fgr.hms.harvard.edu/tools">Other Online Tools</a>
+              </li>
+              <li class="nav-item"> 
+		<a class="nav-link" href="/diopt-dist"> DIOPT: Disease + Traits</a>
+	      </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="/DIOPT_help.html"> About/Help</a>
+                </li>
+
+
+            </ul>
+</div>
+    </nav></header><main role="main" style="margin-left:8px"><div id="messages" class="col-md-12">
+
+
+
+
+    </div>
+
+    <style>
+        .control-label {
+            font-weight: normal;
+        }
+        #enrichment_table {text-align: center;}
+
+        .count {
+            border-left : 2px solid rgba(42, 41, 141, 0.5) !important;
+        }
+
+        .p_value  {
+            border-left : 2px solid rgb(42, 41, 141, 0.5) !important;
+        }
+        .gene_1 {
+            border-left : 2px solid rgb(42, 41, 141, 0.5) !important;
+        }
+
+    </style>
+<section class="text-center" style="margin-bottom:0px"><div class="container-fluid">
+            <div class="row">
+                <div class="col-md-6 p-4" style="text-align:left">
+                    <h2>DIOPT Ortholog Finder</h2>
+
+                    <ul>
+<li> <a href="https://fgr.hms.harvard.edu/diopt-documentation" class="">Documentation</a>
+</li>
+                        <li> <a href="/DIOPT_help.html" value="Tutorial Video" class="">Tutorial Video </a>
+</li>
+                        <li> <a href="../tools/diopt/web/new_submission" class="">  Add New Submission </a>
+</li>
+                    </ul>
+<p style="font-size: .8em">
+                        <br><br>
+                        Part of the <a href="https://fgr.hms.harvard.edu/tools"> DRSC/TRiP Functional Genomics Tools </a>
+
+                    </p>
+                </div>
+                <div class="col-md-6 p-2">
+
+            <img src="../images/DIOPT-logo-integrative_trans.png" height="250">
+</div>
+
+            </div>
+    
+
+<hr>
+<script src="../js/jquery.tablesorter.js"></script><center>
+    <h2 style="margin: 4px 20px 0px 20px">
+<a style="font-size:1.1em" href="/diopt"> DIOPT</a> - DRSC Integrative
+        Ortholog Prediction Tool</h2>
+    <p style="margin-top:0px"><a href="/DIOPT_help.html#versions"> <span style="font-size: 1.0em"> Version 8 (Aug
+        2019) </span></a><br><i>Details of this tool are published in
+            <a href="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?cmd=Retrieve&amp;db=pubmed&amp;dopt=Abstract&amp;list_uids=21880147" target="_blank">
+                Hu, et.
+                al.</a></i></p>
+</center>
+
+    <table width="100%" cellpadding="4" cellspacing="2" class="box" bgcolor="#000000"><tr><td align="center" class="box" bgcolor="#FFFFFF">
+          Some fields contained invalid data.  Please
+          correct the following problem(s):<br><font color="red" size="+1">
+            The value supplied for Prediction Tools was too long.<br></font>
+      </td></tr></table>
+<br><form method="post" action="/cgi-bin/DRSC_orthologs.pl" enctype="multipart/form-data" name="">
+
+
+
+    <div class="container-fluid">
+        <div class="row" style="background-color: #e9ecef;">
+            <div class="col-md-6 p-4 bg-light" style="background-color: #e9ecef;">
+
+                <form name="form" method="post" action="">
+                    <span class="sectionText"> 1. Select Search Type</span>
+                    <div class="btn-group" role="group" aria-label="Basic example">
+                        <button id="ortholog_select" type="button" class="btn btn-outline-primary active">Orthologs</button>
+                        <button id="paralog_select" type="button" class="btn btn-outline-primary">Paralogs</button>
+                    </div>
+                    <br><span class="sectionText">  2. Select Species</span>
+
+                    <div class="form-group">
+
+                        <label class="control-label" for="form_species">Input Species</label>
+
+                        <select name="input_species" style="width:420px" class="form-control"><option value="4896">Schizosaccharomyces pombe (Fission yeast)</option>
+<option value="4932">Saccharomyces cerevisiae (Yeast)</option>
+<option value="6239">Caenorhabditis elegans (Worm)</option>
+<option selected value="7227">Drosophila melanogaster (Fly)</option>
+<option value="7955">Danio rerio (Zebrafish)</option>
+<option value="8364">Xenopus tropicalis (Western clawed frog)</option>
+<option value="9606">Homo sapiens (Human)</option>
+<option value="10090">Mus musculus (Mouse)</option>
+<option value="10116">Rattus norvegicus (Rat)</option>
+<option value="3702">Arabidopsis thaliana (Thale cress)</option></select>
+</div>
+
+
+                    <div id="flip_button" class="btn btn-sm btn-outline-primary" style="margin-left:300px">
+                        flip species
+                    </div>
+
+                    <div class="form-group  output_species_class">
+                        <label class="control-label" for="form_species">Output
+                        Species</label>
+
+                        <select name="output_species" style="width:420px" class="form-control"><option value="4896">Schizosaccharomyces pombe (Fission yeast)</option>
+<option value="4932">Saccharomyces cerevisiae (Yeast)</option>
+<option value="6239">Caenorhabditis elegans (Worm)</option>
+<option value="7227">Drosophila melanogaster (Fly)</option>
+<option value="7955">Danio rerio (Zebrafish)</option>
+<option value="8364">Xenopus tropicalis (Western clawed frog)</option>
+<option selected value="9606">Homo sapiens (Human)</option>
+<option value="10090">Mus musculus (Mouse)</option>
+<option value="10116">Rattus norvegicus (Rat)</option>
+<option value="0">All (All)</option>
+<option value="3702">Arabidopsis thaliana (Thale cress)</option></select>
+</div>
+            </form>
+</div>
+	    
+
+
+            <div class="col-md-6 p-4 bg-light" style="background-color: #e9ecef;">
+
+                <span class="sectionText"> 3. Enter Gene list  </span> (one per line or comma separated)  <span data-toggle="tooltip" data-placement="top" data-html="true" title="&lt;em&gt;Tooltip&lt;/em&gt; &lt;u&gt;with&lt;/u&gt; &lt;b&gt;HTML&lt;/b&gt;">(?)</span>
+
+
+
+                        <div class="form-group">
+
+			    <label class="control-label required">
+			    <b>Gene List Search Field:</b><br></label>
+			    <select name="search_fields" linebreak="0" style="width:120px" class="form-control"><option selected value="***"><font color="#000000">All</font></option>
+<option value="Entrez GeneID"><font color="#660033">Entrez GeneID</font></option>
+<option value="GenBank"><font color="#660033">GenBank</font></option>
+<option value="Gene name"><font color="#660033">Gene name</font></option>
+<option value="Uniprot"><font color="#660033">Uniprot ID</font></option>
+<option value="Ensembl"><font color="#660033">Ensembl ID</font></option>
+<option value="HGNC"><font color="#333399">HGNC</font></option>
+<option value="MGI"><font color="#333399">MGI ID</font></option>
+<option value="FLYBASE"><font color="#333399">Flybase ID</font></option>
+<option value="WormBase"><font color="#333399">Wormbase ID</font></option>
+<option value="ZFIN"><font color="#333399">ZFIN ID</font></option>
+<option value="Xenbase"><font color="#333399">Xenbase ID</font></option>
+<option value="SGD"><font color="#333399">SGD ID</font></option>
+<option value="CG"><font color="#333399">CG Number</font></option>
+<option value="Locus_tag"><font color="#333399">Locus_tag</font></option>
+<option value="genolevures"><font color="#333399">Genolevures</font></option>
+<option value="RGD"><font color="#333399">RGD ID</font></option>
+<option value="PomBase"><font color="#333399">Pombase ID</font></option>
+<option value="amplicon_id"><font color="#006666">Amplicon</font></option>
+<option value="TRiP_num"><font color="#006666">TRiP stock</font></option></select>
+</div>
+            	<div>
+                <a href="#" id="example_background" class=""> Use Example List</a>
+		</div>
+
+          <textarea name="gene_list" rows="10" cols="40">FBgn0029663</textarea><br><b>Or upload from file:</b><br><input type="file" name="gene_file" size="50" maxlength="160"><br><br>
+</div>
+  </div>
+
+    <div class="row" style="background-color: #e9ece">
+        <div class="col-sm-12 p-4 bg-light" style="background-color:cyan;border-bottome :1px solid black;">
+	   <div>
+            <p> Submit with default filters, or select filters (steps 4,5) before submitting:</p>
+          <input type="submit" name="submit" value="Submit Search" class="btn  btn-warning btn-lg">
+</div>
+        </div>
+    </div>
+
+
+        <div class="row" style="background-color: #e9ecef">
+            <div class="col-sm-12 p-4 bg-light">
+<hr>
+<span style="width:100%">  </span>
+            </div>
+        </div>
+
+
+        <div class="row" style="background-color: #e9ecef">
+            <div class="col-sm-6 p-4 bg-light">
+                <div class="form-group pl-4">
+
+                <span class="sectionText"> 4. Choose Ortholog Sources:</span>
+                <br><div id="agr_select_button" class="btn btn-sm btn-outline-primary" style="">
+                    Restrict to AGR Selected Algorithms
+                </div>
+
+		<div id="all_source_select_button" class="btn btn-sm btn-outline-primary" style="">
+                    All
+                </div>
+
+		<div>
+                    <a href="https://www.alliancegenome.org/" target="_blank">AGR (Sources with *) Detail</a><br><label class="control-label" for="search_gene_type">  </label>
+                </div>
+
+          <label><input type="checkbox" name="search_datasets" value="All" checked id="alltools"><span class="allmax">All</span></label><br><label><input type="checkbox" name="search_datasets" value="Compara" checked id="T-Compara" class="agr_default">Compara <a href="http://ensembl.org/info/docs/api/compara/index.html" target="_blank"><font color="#9932CC">(details)   - (vs 96) </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="eggNOG" checked id="T-eggNOG" class="not_agr">eggNOG <a href="http://eggnogdb.embl.de/#/app/home" target="_blank"><font color="#9932CC">(details)   - (vs 5.0) </font></a>  </label><br><label><input type="checkbox" name="search_datasets" value="HGNC" checked id="T-HGNC" class="agr_default">HGNC <a href="http://www.genenames.org/" target="_blank"><font color="#2A67C9">(details)   </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="Hieranoid" checked id="T-Hieranoid" class="agr_default">Hieranoid <a href="http://hieranoidb.sbc.su.se/" target="_blank"><font color="#9932CC">(details)   </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="Homologene" checked id="T-Homologene" class="not_agr">Homologene <a href="http://www.ncbi.nlm.nih.gov/homologene" target="_blank"><font color="#228B22">(details)   - (vs 68) </font></a>  </label><br><label><input type="checkbox" name="search_datasets" value="Inparanoid" checked id="T-Inparanoid" class="agr_default">Inparanoid <a href="http://inparanoid.sbc.su.se/cgi-bin/index.cgi" target="_blank"><font color="#228B22">(details)   - (vs 8) </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="Isobase" checked id="T-Isobase" class="not_agr">Isobase <a href="http://groups.csail.mit.edu/cb/mna/isobase/" target="_blank"><font color="#CC7500">(details)   - (vs 2) </font></a>  </label><br><label><input type="checkbox" name="search_datasets" value="OMA" checked id="T-OMA" class="agr_default">OMA <a href="http://omabrowser.org" target="_blank"><font color="#228B22">(details)   </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="OrthoDB" checked id="T-OrthoDB" class="not_agr">OrthoDB <a href="https://www.orthodb.org" target="_blank"><font color="#9932CC">(details)   - (vs 10) </font></a>  </label><br><label><input type="checkbox" name="search_datasets" value="OrthoFinder" checked id="T-OrthoFinder" class="agr_default">OrthoFinder <a href="https://github.com/davidemms/OrthoFinder" target="_blank"><font color="#228B22">(details)   </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="OrthoInspector" checked id="T-OrthoInspector" class="agr_default">OrthoInspector <a href="http://lbgi.fr/orthoinspector/" target="_blank"><font color="#228B22">(details)   </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="orthoMCL" checked id="T-orthoMCL" class="not_agr">orthoMCL <a href="http://www.orthomcl.org/cgi-bin/OrthoMclWeb.cgi" target="_blank"><font color="#228B22">(details)   - (vs 5) </font></a>  </label><br><label><input type="checkbox" name="search_datasets" value="Panther" checked id="T-Panther" class="agr_default">Panther <a href="http://pantherdb.org/" target="_blank"><font color="#9932CC">(details)   - (vs 14.1) </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="Phylome" checked id="T-Phylome" class="agr_default">Phylome <a href="http://phylomedb.org/" target="_blank"><font color="#9932CC">(details)   - (vs 4) </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="RoundUp" checked id="T-RoundUp" class="agr_default">RoundUp <a href="http://rodeo.med.harvard.edu/tools/roundup" target="_blank"><font color="#228B22">(details)   </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="TreeFam" checked id="T-TreeFam" class="agr_default">TreeFam <a href="http://www.treefam.org/" target="_blank"><font color="#9932CC">(details)   - (vs 9) </font></a> *</label><br><label><input type="checkbox" name="search_datasets" value="User_Submission" checked id="T-User_Submission" class="not_agr">User_Submission <a href="http://www.flyrnai.org/diopt" target="_blank"><font color="#2A67C9">(details)   </font></a>  </label><br><label><input type="checkbox" name="search_datasets" value="ZFIN" checked id="T-ZFIN" class="agr_default">ZFIN <a href="http://zfin.org/" target="_blank"><font color="#2A67C9">(details)   </font></a> *</label>
+</div>
+</div>
+            <div class="col-sm-6 p-4 bg-light">
+
+                <span class="sectionText"> 5. Additional Filter:</span> (optional)
+          <br><label><input type="radio" name="additional_filter" value="None" checked>None</label><br><label><input type="radio" name="additional_filter" value="Best">Return only best match when there is more than one match per input gene or protein</label><br><label><input type="radio" name="additional_filter" value="NoLow">Exclude low score (score &gt; 1, unless only match score is 1)</label><br><label><input type="radio" name="additional_filter" value="AboveTwo">Exclude low scores (score &gt; 2, unless only match score is 1 or 2)</label><br><label><input type="radio" name="additional_filter" value="HighRank">Exclude Low Ranked Scores</label><br><br>
+</div>
+
+                <script>
+
+        jQuery(document).ready(function() {
+
+            console.log("Ready....");
+
+
+            jQuery("#example_background").click(function(){
+
+                jQuery("[name=gene_list]").val('APC2\n\
+ATE1\n\
+atp6\n\
+atp8\n\
+cox1\n\
+cox2\n\
+cox3\n\
+RFC3\n\
+rps12\n\
+RPS2\n\
+rps3\n\
+rps7\n\
+wg\n\
+FBgn0000567\n\
+FBgn0264490\n\
+'
+
+
+);
+
+                return false;
+            });
+
+	    jQuery("[name=input_species").change(function(){
+
+		if(jQuery("#paralog_select").hasClass('active')){
+		    console.log("change orthologs");
+		    let x = jQuery("[name=input_species]").val()
+                    jQuery("[name=output_species]").val(x);
+		} else {
+		    console.log("change but orthologs");
+		}
+
+	 }); 
+
+	/* When Ortholog-Paralog Selection Changes */
+
+
+        jQuery("#ortholog_select").click(function(){
+		jQuery("#ortholog_select").addClass('active');
+		jQuery("#paralog_select").removeClass('active');
+		jQuery(".output_species_class").show();
+		jQuery("#flip_button").show();
+				 })
+
+        jQuery("#paralog_select").click(function(){
+		    jQuery("#ortholog_select").removeClass('active');
+		    jQuery("#paralog_select").addClass('active');
+		    
+		    /* set the species the same as the input species */
+		    let x = jQuery("[name=input_species]").val()
+                    jQuery("[name=output_species]").val(x);
+
+		    jQuery("#flip_button").hide();
+		    jQuery(".output_species_class").hide(); 
+	 })
+
+
+
+
+       jQuery("#flip_button").click(function(){
+                var val1 = jQuery("[name=input_species]").val();
+                var val2 = jQuery("[name=output_species]").val();
+                jQuery("[name=input_species]").val(val2);
+                jQuery("[name=output_species]").val(val1);
+                jQuery('select.input_species').trigger('change');
+            })
+
+
+       /* Select Ortholog Sources */
+
+       jQuery('#agr_select_button').click(function(){
+		    console.log ("AGR  Select Button");
+		    jQuery('.agr_default').prop('checked', true);
+		    jQuery('#alltools').prop('checked', false);
+		})
+
+       jQuery('#all_source_select_button').click(function(){
+		    console.log ("Source All Select Button");
+/*		    jQuery('.agr_default').prop('checked', true);*/
+		    jQuery('#alltools').prop('checked', false);
+		    jQuery('#alltools').click();
+		})
+
+
+       jQuery('#agr_unselect_button').click(function(){
+		    jQuery('#alltools').prop('checked', true);
+		})
+            // check if the statistics are ready
+
+            // anonomous function to lock the scope of geneID so when call backs happen the variable is as is now.
+
+            dirName = '';
+            tryCount = 0;
+
+            /*  The wait for the data to show up/ then redirect   */
+            function poll() {
+                console.log("poll....");
+                if (dirName != '') {
+
+                    setTimeout(function () {
+                        tryCount += 1;
+                        console.log("tryCount: " + tryCount);
+                        getData();
+                    }, 5000);
+                }
+            }
+
+
+        });
+
+    jQuery("#alltools").click(function(){
+	      console.log ("alltools");
+              uncheck_predictions( "alltools" );
+	      });
+
+
+        //getData();
+
+
+    </script><p>
+             
+             <a href="/cgi-bin/DRSC_orthologs.pl">Submit another query.</a>
+           </p>
+
+         
+    
+        
+      
+
+    
+
+  
+
+
+  
+</div>
+</div>
+</form>
+</div></section></main>
+</body>
+</html>
+/>

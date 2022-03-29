@@ -1,0 +1,293 @@
+---
+title: "TechNote: Enable OpenMP on macOS Mojave"
+description: |
+  Parallel Computing in R
+author: Ming
+date: 2021-12-14
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F,warning = F) 
+```
+
+
+# Setup: openMP realization on mac 
+
+When I was running `sourceCpp` in Rstudio in my mac laptop, it showed that [OpenMP](https://mac.r-project.org/openmp/) was not detected in R .
+
+For example, a piece of Rcpp code from [hogsvd.cpp](https://github.com/barkasn/hogsvdR/blob/master/src/hogsvd.cpp)
+
+```{r eval=F}
+#https://github.com/barkasn/hogsvdR/blob/master/src/hogsvd.cpp
+#include <RcppArmadillo.h>
+#include <vector>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+// [[Rcpp::plugins(openmp)]]
+
+using namespace Rcpp;
+
+// [[Rcpp::depends(RcppArmadillo)]]
+```
+
+
+If directly use `sourceCpp('hogsvd.cpp')`, there would be a error message like "couldn't find openMP.
+
+I did some serach, turned out this is a 'universal' problem for Apple and could be solved by some [system configuraitons](https://stackoverflow.com/questions/65251887/clang-7-error-linker-command-failed-with-exit-code-1-for-macos-big-sur/65334247#65334247).
+
+Knowledge borrowed from stackoverflow:
+
+1. Install xcode (if you have xcode, skip this step)
+
+```{r eval=F}
+# To delete an existing command line tools installation:
+sudo rm -rf /Library/Developer/CommandLineTools
+# To install the command line tools
+sudo xcode-select --install
+# check your xcode-select version
+xcode-select --version
+# xcode-select version 2354.
+```
+
+2. Install gcc via Homebrew (if you have gcc, skip this step)
+
+```{r eval=F}
+brew install gcc
+# check your gcc version
+gcc --version
+
+Configured with: --prefix=/Library/Developer/CommandLineTools/usr --with-gxx-include-dir=/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/c++/4.2.1
+Apple LLVM version 10.0.1 (clang-1001.0.46.4)
+Target: x86_64-apple-darwin18.6.0
+Thread model: posix
+InstalledDir: /Library/Developer/CommandLineTools/usr/bin
+```
+
+3. link some headers into /usr/local/include
+
+```{r eval=F}
+sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
+```
+
+4. check your gfortran version and edit `~/.R/Makevars` file.
+
+I follow [this answer](https://stackoverflow.com/questions/68263165/installing-r-on-osx-big-sur-edit-and-apple-m1-for-use-with-rcpp-and-openmp) to modify my `Makevars` file
+
+
+```{r eval=F}
+LOC = /usr/local/gfortran
+CC=$(LOC)/bin/gcc -fopenmp
+CXX=$(LOC)/bin/g++ -fopenmp
+CXX11 = $(LOC)/bin/g++ -fopenmp
+
+CFLAGS=-g -O3 -Wall -pedantic -std=gnu99 -mtune=native -pipe
+CXXFLAGS=-g -O3 -Wall -pedantic -std=c++11 -mtune=native -pipe
+LDFLAGS=-L$(LOC)/lib -Wl,-rpath,$(LOC)/lib
+# find your SDK path via '$xcrun -show-sdk-path' 
+# https://firas.io/post/data.table_openmp/
+CPPFLAGS=-I$(LOC)/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include
+#CPPFLAGS=-I$(LOC)/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include
+
+# (check that the version of gfortran - in this case 10.2.0 - matches the version specified in FLIBS)
+FLIBS=-L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin18/8.2.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm 
+#FLIBS=-L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin19/10.2.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm
+CXX1X=/usr/local/gfortran/bin/g++
+CXX98=/usr/local/gfortran/bin/g++
+CXX11=/usr/local/gfortran/bin/g++
+CXX14=/usr/local/gfortran/bin/g++
+CXX17=/usr/local/gfortran/bin/g++
+```
+
+Then, open you Rstudio, check if openMP is now enabled.
+
+# Validation: openMP installation
+
+## Using data.table with OpenMP support
+
+My previous installed `data.table` R package was not compiled in presnce of `OpenMP`. Thus, whenever I `library(data.table)`, message like 
+
+> This installation of data.table has not detected OpenMP support.
+> It should still work but in single-threaded mode.
+would show up.
+
+
+Now I'd [re-install `data.table` to enable OpenMP capacity](https://firas.io/post/data.table_openmp/).
+
+```{r eval=F}
+remove.packages("data.table")
+install.packages("data.table", type = "source",
+    repos = "https://Rdatatable.gitlab.io/data.table")
+```
+
+To check if `data.table` was successfully compiled with OpenMP support, load the library:
+
+```{r eval=F}
+library(data.table)
+# data.table 1.14.0 using 4 threads (see ?getDTthreads).  Latest news: r-datatable.com
+```
+
+## Rcpp sleep test
+An alternative to test OpenMP is to [use the `sleep` function](https://mfasiolo.github.io/sc2-2019/rcpp_advanced_iii/1_openmp/).
+
+**serial sleep**
+
+```{r}
+library(Rcpp)
+sourceCpp(code = '
+#include <unistd.h>
+#include <Rcpp.h>
+
+// [[Rcpp::export(wait_a_second)]]
+bool wait_a_second(int sec)
+{
+ for(size_t ii = 0; ii < sec; ii++)
+ { 
+  sleep(1);
+ }
+ return 1;
+}
+')
+
+system.time( wait_a_second(2) )[3]
+```
+
+**parallel sleep**
+
+```{r}
+sourceCpp(code = '
+#include <unistd.h>
+#include <Rcpp.h>
+
+// [[Rcpp::plugins(openmp)]]
+
+// [[Rcpp::export(wait_a_second_omp)]]
+bool wait_a_second_omp(int sec, int ncores)
+{
+
+ #if defined(_OPENMP)
+  #pragma omp parallel num_threads(ncores)
+  #pragma omp for
+ #endif
+ for(size_t ii = 0; ii < sec; ii++)
+ { 
+  sleep(1);
+ }
+ 
+ return 1;
+
+ }
+')
+#para1: sleep seconds, para2: n.core used
+system.time(wait_a_second_omp(4, 1))
+system.time(wait_a_second_omp(4, 4))
+system.time(wait_a_second_omp(16, 16))
+```
+
+# A detour: benchmark code performance
+
+It's a routine task to benchmark code running time on samll dataset before applying it to big project.
+
+Here is a simple example with R base function `system.time` to if [`mclapply` is doing parallel computation as we expect](https://cosx.org/2016/09/r-and-parallel-computing/
+).
+
+```{r}
+solve.quad.eq <- function(a, b, c) {
+  if(abs(a) < 1e-8 && abs(b) < 1e-8) return(c(NA, NA) )
+  if(abs(a) < 1e-8 && abs(b) > 1e-8) return(c(-c/b, NA))
+  if(b*b - 4*a*c < 0) return(c(NA,NA))
+  x.delta <- sqrt(b*b - 4*a*c)
+  x1 <- (-b + x.delta)/(2*a)
+  x2 <- (-b - x.delta)/(2*a)
+  return(c(x1, x2))
+}
+
+library(parallel)
+
+# Generate data 
+len <- 1e6
+a <- runif(len, -10, 10)
+a[sample(len, 100,replace=TRUE)] <- 0
+b <- runif(len, -10, 10)
+c <- runif(len, -10, 10)
+# serial code
+system.time(
+  res1.s <- lapply(1:len, FUN = function(x) { solve.quad.eq(a[x], b[x], c[x])})
+)
+
+# multicores on Linux or Mac
+system.time(
+  res1.p <- mclapply(1:len, FUN = function(x) { solve.quad.eq(a[x], b[x], c[x])}, mc.cores = 2)
+)
+```
+
+
+
+# Rcpp application: large matrix multiplication
+I saw [this example](https://stackoverflow.com/questions/35923787/fast-large-matrix-multiplication-in-r) on stackoverflow and copied it here showing the power of Rcpp.
+
+
+```{r}
+library(Rcpp)
+sourceCpp(code ='
+// [[Rcpp::depends(RcppArmadillo, RcppEigen)]]
+
+#include <RcppArmadillo.h>
+#include <RcppEigen.h>
+
+// [[Rcpp::export]]
+SEXP armaMatMult(arma::mat A, arma::mat B){
+    arma::mat C = A * B;
+
+    return Rcpp::wrap(C);
+}
+
+// [[Rcpp::export]]
+SEXP eigenMatMult(Eigen::MatrixXd A, Eigen::MatrixXd B){
+    Eigen::MatrixXd C = A * B;
+
+    return Rcpp::wrap(C);
+}
+
+// [[Rcpp::export]]
+SEXP eigenMapMatMult(const Eigen::Map<Eigen::MatrixXd> A, Eigen::Map<Eigen::MatrixXd> B){
+    Eigen::MatrixXd C = A * B;
+
+    return Rcpp::wrap(C);
+}
+')
+
+
+A <- matrix(rnorm(10000), 100, 100)
+B <- matrix(rnorm(10000), 100, 100)
+
+library(microbenchmark)
+microbenchmark(A%*%B, armaMatMult(A, B), eigenMatMult(A, B), eigenMapMatMult(A, B))
+
+```
+
+You can see the different running speed of differemt implementations of matrix multiplication, `A%*%B` is the slowest and `eigenMapMatMult(A, B)` is the fastest.
+
+**References**
+
+1) https://mac.r-project.org/openmp/
+2) https://github.com/barkasn/hogsvdR/blob/master/src/hogsvd.cpp
+3) https://stackoverflow.com/questions/65251887/clang-7-error-linker-command-failed-with-exit-code-1-for-macos-big-sur/65334247#65334247
+4) https://stackoverflow.com/questions/68263165/installing-r-on-osx-big-sur-edit-and-apple-m1-for-use-with-rcpp-and-openmp
+5) https://firas.io/post/data.table_openmp/
+6) https://mfasiolo.github.io/sc2-2019/rcpp_advanced_iii/1_openmp/
+7) https://cosx.org/2016/09/r-and-parallel-computing/
+8) https://stackoverflow.com/questions/35923787/fast-large-matrix-multiplication-in-r
+
+
+```{r}
+sessionInfo()
+```
+

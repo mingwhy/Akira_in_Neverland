@@ -1,0 +1,296 @@
+---
+title: "SurvivalAnalysis: From life table to survival curves"
+description: |
+  Hands on Survival Analysis
+author: Ming
+date: 2022-01-02
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F,warning = F) 
+```
+
+
+# Data organization
+
+## Dlife data structure explained
+
+Dlife is a software for lifespan experiment.
+
+* Censensus is performed every other day.
+* setup: vial ID, #total.fly per vial
+* every censunsus, record: #time, #deaths, #carried, #censored
+
+The example dataset below contain lifespan data from 16 vials of 2 genotypes.
+
+```{r}
+library(ggplot2);library(data.table)
+x<-readxl::read_xlsx("Tau_lifespan_Aug_19_2021.xlsx",sheet='RawData') #DL=DLife, this data contain 48 vial lifespan data
+table(x$Chamber,x$UniqueName)
+x=as.data.table(x)
+
+DL=x[x$Chamber==1,] #select vial 1 as an example
+head(DL)
+DL[AgeH==1,]$N #Total number of flies in the experiment 
+
+# select informative rows where events happen
+InfoDL<-DL[(Deaths>0|Censored>0 | IntDeaths>0), .(AgeH, Chamber, UniqueName, Deaths, Carried, Censored, IntDeaths, N)]
+
+# assmue t1: previous time
+#        t2: current time
+# IntDeath.t2 = Deaths.t2 + Carried.t2 - Carried.t1
+# N.t2 = N.t1 - Censored.t2 - IntDeath.t2
+plot(InfoDL$AgeH,InfoDL$N,type='l',xlab='Time in hr',ylab='#fly')
+```
+
+# Kaplan Meier Analysis
+
+Useful link: http://www.sthda.com/english/wiki/survival-analysis-basics
+
+## Reformat data for survival R package input
+
+```{r}
+library(survival)
+
+## Convert DLife data to the format usable by the survival package. 
+# survival package require each death correspond to one row
+# input to survival package:
+# event happening time point, which event (death or census)
+DL<-readxl::read_xlsx("Tau_lifespan_Aug_19_2021.xlsx",sheet='RawData') #DL=DLife, this data contain 48 vial lifespan data
+DL=as.data.table(DL)
+min(DL$AgeH)
+DL[AgeH==min(DL$AgeH), sum(N)] #Total number of flies in the experiment 
+
+# select informative rows where events happen
+InfoDL<-DL[(Censored>0 | IntDeaths>0), .(AgeH, Chamber, UniqueName, Deaths, Carried, Censored, IntDeaths, N)]
+# select non-redundant columns used in survival analysis
+eDL<-InfoDL[, .(AgeH, Chamber, UniqueName, Censored, IntDeaths)]
+dim(eDL) #181 rows
+
+library(splitstackshape) 
+sum(eDL$IntDeaths) #360
+Deaths<-expandRows(eDL[,.(AgeH, Chamber, UniqueName, IntDeaths)], "IntDeaths")
+dim(Deaths) #360
+Deaths$Deaths<-1 #Assign value 1 to each expanded row
+Deaths$Censored<-0 #Assign value 0 to each expanded row
+
+sum(eDL$Censored) #24
+Censored<-expandRows(eDL[,.(AgeH, Chamber, UniqueName, Censored)], "Censored")
+dim(Censored) #24
+Censored$Censored<-1
+Censored$Deaths<-0
+
+temp<-rbind(Deaths, Censored) #temp$Deaths is equivalent to event in the survival object, as all deaths are 1 and all censored are 0
+Data<-temp[,Genotype:=UniqueName]
+Data$AgeD<-(Data$AgeH)/24 #hours into days
+
+#write.table(Data, "Surv_input.txt", sep="\t", quote=F, row.names=F)
+
+## survfit
+fit<-survfit(Surv(AgeD,Deaths)~Genotype, data=Data)
+summary(fit)$table
+
+##Survival estimates at an early age
+head(fit$time)
+SurvTo40<-summary(fit, times=40)$surv
+SurvTo40
+
+ndeath<-summary(fit)$table[,4]
+rmean<-summary(fit)$table[,5]
+se<-summary(fit)$table[,6]
+median<-summary(fit)$table[,7]
+SummaryStats<-data.table(Genotype=levels(as.factor(Data$Genotype)),NDeath=ndeath,Mean=rmean,Se=se,Median=median)
+#write.table(SummaryStats, "Surv_LifeSpan_Summary", row.names=F, sep="\t", quote=F)
+
+
+# visualizae fitting curves https://cran.r-project.org/web/packages/ggfortify/vignettes/plot_surv.html
+library(ggfortify)
+autoplot(fit)
+
+
+# log-rank test
+#https://zhuanlan.zhihu.com/p/138280210
+surv_diff <- survdiff(Surv(AgeD, Deaths) ~ Genotype, data = Data)
+surv_diff
+```
+
+
+# Parametric Survival Analysis
+
+## Exponential model
+```{r}
+res.exp <- survreg(Surv(AgeD, Deaths) ~ Genotype, data = Data, dist = "exponential")
+summary(res.exp)
+```
+
+## Weibull model
+```{r}
+res.weibull <- survreg(Surv(AgeD, Deaths) ~ Genotype, data = Data, dist = c("weibull", "exponential", "gaussian", "logistic", 
+    "lognormal", "loglogistic")[1])
+summary(res.weibull)
+```
+
+## Cox proportional hazards model
+```{r}
+# genotype as fixed effect
+fit.fixed<-coxph(Surv(AgeD,Deaths)~Genotype, data=Data)
+summary(fit.fixed)
+
+# genotype as random effect
+library(coxme)
+fit.random1<-coxme(Surv(AgeD,Deaths)~(1|Genotype), data=Data)
+fit.random1
+
+fit.random2<-coxme(Surv(AgeD,Deaths)~(1|Chamber), data=Data)
+fit.random2
+
+
+fit.nested<-coxme(Surv(AgeD,Deaths)~Genotype+(1|Chamber), data=Data)
+fit.nested
+
+
+res.cox <- coxph(Surv(AgeD, Deaths) ~ Genotype, data = Data)
+summary(res.cox)
+```
+
+## Gompertz model
+
+```{r}
+# use library(flexsurv) for fitting gompertz and estimating parameters
+library(flexsurv)
+# one sample
+unique(Data$Genotype)
+subData<-Data[Genotype=="w1118"]
+fs1<-flexsurvreg(Surv(AgeD,Deaths)~1, data=subData, dist="gompertz")
+fs1$coefficients
+
+# prepare a matrix for storing fitting Gompertz results
+Gompertz<-matrix(NA, nrow=length(levels(as.factor(Data$Genotype))), ncol=2)
+rownames(Gompertz)<-levels(as.factor(Data$Genotype))
+colnames(Gompertz)<-c("shape","rate")
+
+for (i in 1:length(levels(as.factor(Data$Genotype)))) {
+  subData<-Data[Genotype==levels(as.factor(Data$Genotype))[i]]
+  fs<-flexsurvreg(Surv(AgeD,Deaths)~1, data=subData, dist="gompertz")
+  Gompertz[i,]<-fs$coefficients ##Extract alpha ("rate") and beta ("shape") from the model fit
+}
+
+Gompertz #every genotype has a shape and a rate estimated values
+
+
+res.gompertz <- flexsurvreg(Surv(AgeD, Deaths) ~ Genotype, data = Data, dist = c("gompertz"))
+res.gompertz
+```
+
+
+## plot fitting curves 
+
+```{r}
+#http://www.stat.columbia.edu/~madigan/W2025/notes/survival.pdf
+## Define a function to plot survreg prediction by gender
+survreg.curves <- function(model, col = "black", values = c("ON4R","w1118"),seq.quantiles = seq(0.00, 1.00, 0.01)) {
+  
+  plyr::l_ply(values, function(X) {
+    if(X=='tau'){type=1}else{type=2}
+    lines(x = predict(model,                    # survreg object to use
+                      newdata=data.frame(Genotype = X), # Dataset to perform prediction for
+                      type = "quantile",                # Predict survival time (X-axis values) given event quantile
+                      p = seq.quantiles),               # Vector of quantiles (Y-axis values)
+          y = (1 - seq.quantiles),              # Change to survival quantile (proportion remaining)
+          col = col, lty = type)               # COLor and Line TYpe
+  })
+}
+
+## plot KM curves
+par(lwd = 2)
+plot(fit, lty = 1:2, conf.int = F, , main = "nsyb, male", xlab = "Days", ylab = "Survival")
+legend("topright", c("ON4R", "w1118"), lty = 1:2)
+## plot Cox prediction
+lines(survfit(res.cox, newdata = data.frame(Genotype = c("ON4R", "w1118"))), col = "green", lty = 1:2, mark.time = FALSE)
+## Plot exponential model prediction
+survreg.curves(res.exp, "purple")
+## Plot Weibull model prediction
+survreg.curves(res.weibull, "blue")
+
+## Plot Gompertz model prediction
+out = summary(res.gompertz)
+lines(out$`Genotype=w1118`[, 1], out$`Genotype=w1118`[, 2], col = "red", lty = 2)
+lines(out$`Genotype=ON4R`[, 1], out$`Genotype=ON4R`[, 2], col = "red", lty = 1)
+
+res.gompertz$res
+
+## Add legends
+legend(x = "bottomleft", legend = c("Kaplan-Meier", "Cox", "Exponential", "Weibull", "Gompertz"), lwd = 2, bty = "n", col = c("black", 
+    "green", "purple", "blue", "red"))
+
+```
+
+
+### More abnout Gompertz distribution  
+
+<br>
+* The Gompertz distribution with shape parameter `a` and rate parameter `b` has 
+    + PDF, probability density function: f(x|a,b) = b exp(ax) exp(-b/a (exp(ax) - 1))
+
+    + hazard function: h(x|a,b) = b exp(ax)
+    + CDF: F(x|a,b) = 1 - exp( -b/a (exp(at)-1))
+    + mortality function m(t), log of h(t): m(t) = log(b) + a*x
+
+b: rate
+<br>
+a: shape
+
+#### Fit Tau and Control flies separately and get the coeff estimates
+
+
+```{r results="markup",echo=T,fig.height=6, fig.width=8}
+## Gompertz model
+control=subset(Data,Genotype=='w1118')
+res.gompertz1 <- flexsurvreg(Surv(AgeD,Deaths)~1,data=control,
+                                dist= c("gompertz"))
+res.gompertz1
+
+tau=subset(Data,Genotype=='ON4R')
+res.gompertz2 <- flexsurvreg(Surv(AgeD,Deaths)~1,data=tau,
+                                dist= c("gompertz"))
+res.gompertz2
+
+a=res.gompertz1$res[1];
+b=res.gompertz1$res[2];
+
+t=seq(1,100,1);
+y=1-exp(-b/a*(exp(a*t)-1)) #F(t)
+plot(t,1-y,xlab="time",ylab="survival",col="blue",ylim=c(0,1))
+
+a=res.gompertz2$res[1]; #shape <=> slope for motality func
+b=res.gompertz2$res[2]; #rate <=> log(rate)=intercept for motality func
+
+t=seq(1,100,1);
+y=1-exp(-b/a*(exp(a*t)-1)) #S(t)
+points(t,1-y,col="red")
+legend(x = "bottomleft",
+           legend = c("w1118","Tau"),
+           lwd = 2, bty = "n",
+           col = c("blue","red"))
+plot(x=-20:20,y=-20:20,type="n",ylab="mortality (log of h(t))")
+abline(a=res.gompertz1$res.t[2,1],b=res.gompertz1$res.t[1,1],col="blue") #a=intercept;b=slope
+abline(a=res.gompertz2$res.t[2,1],b=res.gompertz2$res.t[1,1],col="red")
+
+plot(x=0:100,y=-50:50,type="n",ylab="mortality (log of h(t))")
+abline(a=res.gompertz1$res.t[2,1],b=res.gompertz1$res.t[1,1],col="blue") #a=intercept;b=slope
+abline(a=res.gompertz2$res.t[2,1],b=res.gompertz2$res.t[1,1],col="red")
+
+x=data.frame(rbind(res.gompertz1$res.t[,1],res.gompertz2$res.t[,1]));
+colnames(x)=c("slope",'intercept');
+rownames(x)=c("w1118","tau");
+x
+
+```
+```{r}
+devtools::session_info()
+```

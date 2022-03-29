@@ -1,0 +1,163 @@
+---
+title: "04.scRNA-seq: fit P, NB, ZIP, ZINB models in a Bayesian framework with real single cell data"
+description: |
+  Fit the four statistical models to fly single cell data and estimate parameters in a Bayesian framework 
+author: Ming
+date: 2021-11-24
+output:
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this post, I'd use fly single cell data and perform modelling fitting.
+
+## read in test data in loom format
+
+In the post titled **00.scRNA-seq: fit zero proportions**, I generated a test dataset in loom format. Read in this data to prepare for model fitting.
+
+```{r}
+## read in small loomR file
+library(loomR)
+ds <- connect('wing_2celltypes_10x.loom')
+mat <- t(ds$matrix[,])
+gene.names <- ds$row.attrs$Gene[]
+cell.names <- ds$col.attrs$CellID[]
+cell.types<-ds$col.attrs$cell.type[]
+sex.labels<-ds$col.attrs$sex.label[]
+ds$close_all()
+
+dim(mat)
+length(gene.names)
+length(cell.names)
+table(cell.types)
+table(sex.labels)
+```
+
+## fit the four models
+
+I copied source code from: #https://github.com/churchill-lab/scRATE/blob/master/R/fit_count_models.R
+to perform model fitting.
+
+```{r}
+## fit P, NB, ZIP, ZINB models for each gene
+## use cell.type and sex as covariates
+cell.size=log(Matrix::colSums(mat))
+gene.total.umi=Matrix::rowSums(mat)
+i=which.max(gene.total.umi)
+y=mat[i,] #use the gene with most umi/transcripts
+
+gexpr=data.frame(y=y,cell.size=cell.size,cell.type=cell.types,sex.label=sex.labels)
+
+covariates <- names(gexpr)[-c(1, 2)]
+
+formula_string <- 'y ~ 1'
+for (covar in covariates) {
+  formula_string <- paste(formula_string,sprintf(' + (1|%s)', covar))
+}
+formula_string
+
+f12 <- as.formula(formula_string) #for these two models, offset can be set inside functin.
+# no need to include it in the linear formula
+f34 <- as.formula(paste(formula_string, ' + offset(cell.size)'))
+f12
+f34
+
+
+fitting <- list()
+library(rstanarm);
+
+nCores=2;seed=2049
+
+message('Fitting data with Poisson model...')
+fitting[["P"]] <- stan_glmer(f12,
+                             family = poisson,
+                             data = gexpr,
+                             offset = cell.size,
+                             cores = nCores,
+                             seed = seed,
+                             refresh = 0)
+
+
+message('Fitting data with Negative Binomial model...')
+fitting[["NB"]] <- stan_glmer(f12,
+                              family = neg_binomial_2,
+                              data = gexpr,
+                              offset = cell.size,
+                              cores = nCores,
+                              seed = seed,
+                              refresh = 0)
+
+## for fitting zero-inflated models, use `brms` package
+library(brms)
+options(brms.backend = "cmdstanr")
+
+adapt_delta=0.8
+message('Fitting data with Zero-Inflated Poisson model...')
+
+myprior_3 <- get_prior(bf(f34, zi ~ 1),
+                       family = zero_inflated_poisson(),
+                       data = gexpr)
+myprior_3_values <- eval(parse(text=gsub("student_t", "c", myprior_3$prior[1])))
+
+fitting[["ZIP"]] <- brm(bf(f34, zi ~ 1),
+                        family = zero_inflated_poisson(),
+                        data = gexpr,
+                        prior = myprior_3,
+                        control = list(adapt_delta = adapt_delta),
+                        cores = nCores,
+                        seed = seed,
+                        refresh = 500)
+
+
+message('Fitting data with Zero-Inflated Negative Binomial model...')
+myprior_4 <- get_prior(bf(f34, zi ~ 1),
+                       family = zero_inflated_negbinomial(),
+                       data = gexpr)
+myprior_4_values <- eval(parse(text=gsub("student_t", "c", myprior_4$prior[1])))
+fitting[["ZINB"]] <- brm(bf(f34, zi ~ 1),
+                         family = zero_inflated_negbinomial(),
+                         data = gexpr,
+                         control = list(adapt_delta = adapt_delta),
+                         prior = myprior_4,
+                         cores = nCores,
+                         seed = seed,
+                         refresh = 500)
+```
+
+## compare models
+I copied source code from:https://github.com/churchill-lab/scRATE/blob/master/R/compare_count_models.R
+to compare models
+
+```{r}
+library(loo)
+models <- names(fitting)
+models
+loo_list <- list()
+
+loo_1 <- loo(fitting$P)
+loo_list[['P']] <- loo_1
+
+loo_2 <- loo(fitting$NB)
+loo_list[['NB']] <- loo_2
+
+loo_3 <- loo(fitting$ZIP)
+loo_list[['ZIP']] <- loo_3
+
+loo_4 <- loo(fitting$ZINB)
+loo_list[['ZINB']] <- loo_4
+
+res <- do.call(loo_compare, list(loo_list))
+res
+```
+
+
+
+```{r}
+sessionInfo()
+```
+
